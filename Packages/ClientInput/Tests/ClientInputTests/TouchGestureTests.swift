@@ -12,7 +12,7 @@ import Testing
 
     /// Runs a script of touch events and refresh ticks, collecting every action.
     struct Script {
-        var r = DirectTouchRecognizer()
+        var r = TouchGestureRecognizer()
         var actions: [A] = []
         mutating func callAsFunction(_ phase: TouchPhase, _ samples: [TouchSample], at time: Duration) {
             actions += r.advance(to: time)

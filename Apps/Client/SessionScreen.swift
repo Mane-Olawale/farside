@@ -38,8 +38,8 @@ struct SessionScreen: View {
 }
 
 /// The floating toolbar (plan section 7), Phase 2's subset: keyboard, sticky modifiers, common
-/// keys, function keys, shortcuts, stats and disconnect. The display picker, quality and input
-/// mode arrive later.
+/// keys, function keys, input mode, shortcuts, stats and disconnect. The display picker and
+/// quality arrive later.
 private struct ControlPill: View {
     let connection: ConnectionModel
     let close: () -> Void
@@ -86,6 +86,14 @@ private struct ControlPill: View {
                     Text("fn…").font(.callout.monospaced())
                 }
                 .accessibilityLabel("Function and navigation keys")
+
+                Button {
+                    connection.inputMode = connection.inputMode == .direct ? .trackpad : .direct
+                } label: {
+                    Image(systemName: connection.inputMode == .direct ? "hand.point.up.left" : "cursorarrow.rays")
+                }
+                .accessibilityLabel("Input mode")
+                .accessibilityValue(connection.inputMode == .direct ? "Direct touch" : "Trackpad")
 
                 Menu {
                     ForEach(Self.shortcuts, id: \.name) { shortcut in

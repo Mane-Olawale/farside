@@ -21,6 +21,10 @@ public enum GestureAction: Sendable, Equatable {
     /// Move the pointer here, buttons unchanged.
     case move(Point2)
     case button(Button, down: Bool, at: Point2, clickCount: Int)
+    /// Trackpad mode: move the cursor by this much, in view points, acceleration applied.
+    case moveBy(Point2)
+    /// Trackpad mode: a button at wherever the cursor is.
+    case cursorButton(Button, down: Bool, clickCount: Int)
     /// Positive dx and dy move the content right and down, as the fingers do.
     case scroll(dx: Double, dy: Double, phase: Phase, momentum: Phase)
     case shortcut(Shortcut)
@@ -38,7 +42,9 @@ public enum GestureAction: Sendable, Equatable {
     public enum Shortcut: Sendable, Equatable { case missionControl, spaceLeft, spaceRight }
 }
 
-/// Direct touch mode (plan section 9): the finger acts where it touches.
+/// Touch gestures in the two modes of plan section 9.
+///
+/// Direct touch mode, the default: the finger acts where it touches.
 ///
 /// | Gesture | Mac action |
 /// | --- | --- |
@@ -52,7 +58,18 @@ public enum GestureAction: Sendable, Equatable {
 /// | Three-finger swipe up, left, right | Mission Control, next Space, previous Space |
 /// | Three-finger tap | Show or hide the toolbar |
 ///
-/// Apple Pencil presses the left button at once: tap clicks, drag drags.
+/// Trackpad mode: the whole screen behaves like a laptop trackpad, and the cursor stays where it is
+/// until a finger moves it.
+///
+/// | Gesture | Mac action |
+/// | --- | --- |
+/// | One-finger drag | Move the cursor relatively, with an acceleration curve |
+/// | Tap | Left click at the cursor; quick taps make double and triple clicks |
+/// | Double tap and hold, then drag | Left button drag |
+/// | Two-finger tap | Right click at the cursor |
+/// | Two-finger drag, pinch, three fingers | As in direct touch mode |
+///
+/// Apple Pencil presses the left button at once, where it touches, in both modes.
 ///
 /// A two-finger gesture that changes the fingers' spread is a pinch and stays local; one that only
 /// moves them scrolls the Mac. That is how the plan's "two fingers pan while zoomed" and
@@ -60,7 +77,7 @@ public enum GestureAction: Sendable, Equatable {
 ///
 /// Pure: time is passed in. Call `touches` for UIKit's touch callbacks and `advance` on every
 /// display refresh for long presses and momentum.
-public struct DirectTouchRecognizer: Sendable {
+public struct TouchGestureRecognizer: Sendable {
     public struct Settings: Sendable {
         /// Movement under this, in points, is still a tap or a press.
         public var slop: Double = 10
@@ -75,7 +92,22 @@ public struct DirectTouchRecognizer: Sendable {
         public init() {}
     }
 
+    public enum Mode: String, Sendable, CaseIterable, Codable {
+        case direct, trackpad
+    }
+
     public var settings: Settings
+    /// Switching mode takes effect from the next touch.
+    public var mode: Mode = .direct
+
+    /// Trackpad mode's acceleration: 1x up to 100 points a second, rising to 3x at 500 and
+    /// above, so slow moves are precise and fast ones cross the screen.
+    public static func accelerated(_ delta: Point2, seconds dt: Double) -> Point2 {
+        guard dt > 0 else { return delta }
+        let speed = (delta.x * delta.x + delta.y * delta.y).squareRoot() / dt
+        let gain = 1 + min(max((speed - 100) / 400, 0), 1) * 2
+        return Point2(delta.x * gain, delta.y * gain)
+    }
 
     private enum OneFinger: Sendable {
         /// Down, not yet a drag or a press.
@@ -86,6 +118,12 @@ public struct DirectTouchRecognizer: Sendable {
         case pressed
         /// Left button held.
         case dragging
+        /// Trackpad: moving the cursor.
+        case tracking
+        /// Trackpad: down again just after a tap. A move makes it a drag, a lift a double click.
+        case dragArmed
+        /// Trackpad: left button held, moving relatively.
+        case trackDragging
     }
 
     private enum TwoFinger: Sendable {
@@ -108,6 +146,8 @@ public struct DirectTouchRecognizer: Sendable {
     private var lastTap: (at: Point2, time: Duration, count: Int)?
     private var lastTime: Duration = .zero
     private var momentum = ScrollMomentum()
+    /// When the one finger last moved, for the trackpad's speed.
+    private var lastMove: Duration = .zero
 
     public init(settings: Settings = Settings()) {
         self.settings = settings
@@ -116,7 +156,7 @@ public struct DirectTouchRecognizer: Sendable {
     /// When `advance` next has something to do.
     public var nextDeadline: Duration? {
         if momentum.isRunning { return lastTime }
-        if case let .one(_, _, startTime, _, .pending) = state, !isPencilActive { return startTime + settings.longPress }
+        if mode == .direct, case let .one(_, _, startTime, _, .pending) = state, !isPencilActive { return startTime + settings.longPress }
         return nil
     }
 
@@ -157,7 +197,8 @@ public struct DirectTouchRecognizer: Sendable {
     /// Long presses and momentum that are due.
     public mutating func advance(to now: Duration) -> [GestureAction] {
         var out: [GestureAction] = []
-        if case let .one(id, start, startTime, last, .pending) = state, !isPencilActive, now - startTime >= settings.longPress {
+        if mode == .direct, case let .one(id, start, startTime, last, .pending) = state, !isPencilActive,
+           now - startTime >= settings.longPress {
             state = .one(id: id, start: start, startTime: startTime, last: last, mode: .pressed)
             out.append(.move(start))
             out.append(.longPress)
@@ -180,9 +221,13 @@ public struct DirectTouchRecognizer: Sendable {
                 pencilClicks = clickCount(at: point, now: now)
                 return [.move(point), .button(.left, down: true, at: point, clickCount: pencilClicks)]
             }
-            state = .one(id: id, start: point, startTime: now, last: point, mode: .pending)
+            lastMove = now
+            let armed = mode == .trackpad && lastTap.map {
+                now - $0.time <= settings.multiTapTime && distance($0.at, point) <= settings.multiTapDistance
+            } == true
+            state = .one(id: id, start: point, startTime: now, last: point, mode: armed ? .dragArmed : .pending)
             return []
-        case (.one(_, _, _, _, .pending), 2), (.idle, 2):
+        case (.one(_, _, _, _, .pending), 2), (.one(_, _, _, _, .dragArmed), 2), (.idle, 2):
             let mid = centroid(points)
             let spread = distance(points[0], points[1])
             state = .two(start: mid, startSpread: spread, startTime: startTime(of: state) ?? now, lastMid: mid, lastSpread: spread, mode: .pending)
@@ -194,6 +239,9 @@ public struct DirectTouchRecognizer: Sendable {
             // A second finger during a drag: finish the drag cleanly, then ignore the rest.
             state = .draining
             return [.button(.left, down: false, at: last, clickCount: 1)]
+        case (.one(_, _, _, _, .trackDragging), _) where points.count > 1:
+            state = .draining
+            return [.cursorButton(.left, down: false, clickCount: 1)]
         case (.two(_, _, _, _, _, .scrolling), _) where points.count > 2:
             state = .draining
             return endScroll(cancelled: true)
@@ -202,6 +250,7 @@ public struct DirectTouchRecognizer: Sendable {
             if case .one(_, _, _, _, .pending) = state { state = .draining }
             if case .one(_, _, _, _, .hovering) = state { state = .draining }
             if case .one(_, _, _, _, .pressed) = state { state = .draining }
+            if case .one(_, _, _, _, .tracking) = state { state = .draining }
             return []
         }
     }
@@ -212,11 +261,15 @@ public struct DirectTouchRecognizer: Sendable {
             guard let point = touches[id] else { return [] }
             let far = distance(point, start) > settings.slop
             switch mode {
+            case .pending where far && self.mode == .trackpad:
+                let delta = relativeMove(from: state, to: point, at: now)
+                state = .one(id: id, start: start, startTime: startTime, last: point, mode: .tracking)
+                return [.moveBy(delta)]
             case .pending where far:
                 state = .one(id: id, start: start, startTime: startTime, last: point, mode: .hovering)
                 return [.move(point)]
             case .pending:
-                state = .one(id: id, start: start, startTime: startTime, last: point, mode: .pending)
+                // Within the slop: `last` stays at the start, so the first move covers it.
                 return []
             case .hovering:
                 state = .one(id: id, start: start, startTime: startTime, last: point, mode: .hovering)
@@ -229,6 +282,16 @@ public struct DirectTouchRecognizer: Sendable {
             case .dragging:
                 state = .one(id: id, start: start, startTime: startTime, last: point, mode: .dragging)
                 return [.move(point)]
+            case .tracking, .trackDragging:
+                let delta = relativeMove(from: state, to: point, at: now)
+                state = .one(id: id, start: start, startTime: startTime, last: point, mode: mode)
+                return [.moveBy(delta)]
+            case .dragArmed where far:
+                let delta = relativeMove(from: state, to: point, at: now)
+                state = .one(id: id, start: start, startTime: startTime, last: point, mode: .trackDragging)
+                return [.cursorButton(.left, down: true, clickCount: 1), .moveBy(delta)]
+            case .dragArmed:
+                return []
             }
 
         case let .two(start, startSpread, startTime, lastMid, lastSpread, mode):
@@ -281,12 +344,21 @@ public struct DirectTouchRecognizer: Sendable {
         switch state {
         case let .one(id, start, _, last, mode) where ids.contains(id):
             switch mode {
+            case .pending where self.mode == .trackpad, .dragArmed:
+                // A tap clicks where the cursor is; a quick second tap makes a double click.
+                let count = clickCount(at: start, now: now)
+                lastTap = (start, now, count)
+                out += [.cursorButton(.left, down: true, clickCount: count), .cursorButton(.left, down: false, clickCount: count)]
             case .pending:
                 // Still within the slop: a tap, however long, unless a long press was recognized.
                 let count = clickCount(at: start, now: now)
                 lastTap = (start, now, count)
                 out += [.move(start), .button(.left, down: true, at: start, clickCount: count),
                         .button(.left, down: false, at: start, clickCount: count)]
+            case .trackDragging:
+                out.append(.cursorButton(.left, down: false, clickCount: 1))
+            case .tracking:
+                break
             case .pressed:
                 out += [.move(start), .button(.right, down: true, at: start, clickCount: 1),
                         .button(.right, down: false, at: start, clickCount: 1)]
@@ -305,6 +377,8 @@ public struct DirectTouchRecognizer: Sendable {
 
         case let .two(start, _, startTime, _, _, mode):
             switch mode {
+            case .pending where now - startTime <= settings.tapTime && self.mode == .trackpad:
+                out += [.cursorButton(.right, down: true, clickCount: 1), .cursorButton(.right, down: false, clickCount: 1)]
             case .pending where now - startTime <= settings.tapTime:
                 // Two-finger tap: right click where the fingers were.
                 out += [.move(start), .button(.right, down: true, at: start, clickCount: 1),
@@ -339,6 +413,8 @@ public struct DirectTouchRecognizer: Sendable {
         switch state {
         case let .one(_, _, _, last, .dragging):
             out.append(.button(.left, down: false, at: last, clickCount: 1))
+        case .one(_, _, _, _, .trackDragging):
+            out.append(.cursorButton(.left, down: false, clickCount: 1))
         case .two(_, _, _, _, _, .scrolling):
             out += endScroll(cancelled: true)
         default:
@@ -366,6 +442,14 @@ public struct DirectTouchRecognizer: Sendable {
     }
 
     // MARK: Helpers
+
+    /// The finger's movement since the last one, accelerated for trackpad mode.
+    private mutating func relativeMove(from state: State, to point: Point2, at now: Duration) -> Point2 {
+        guard case let .one(_, _, _, last, _) = state else { return Point2(0, 0) }
+        let dt = Double((now - lastMove).components.attoseconds) / 1e18 + Double((now - lastMove).components.seconds)
+        lastMove = now
+        return Self.accelerated(Point2(point.x - last.x, point.y - last.y), seconds: dt)
+    }
 
     private func clickCount(at point: Point2, now: Duration) -> Int {
         guard let lastTap, now - lastTap.time <= settings.multiTapTime,

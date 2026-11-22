@@ -1,3 +1,4 @@
+import ClientInput
 import ClientVideo
 import Foundation
 import MediaCore
@@ -47,6 +48,11 @@ final class ConnectionModel: Identifiable {
     var showsStats = true
     /// The floating toolbar (plan section 7); a three-finger tap shows or hides it.
     var showsToolbar = true
+    /// Direct touch or trackpad (plan section 7, input mode). Remembered on this iPad.
+    var inputMode: TouchGestureRecognizer.Mode = TouchGestureRecognizer.Mode(
+        rawValue: UserDefaults.standard.string(forKey: "inputMode") ?? "") ?? .direct {
+        didSet { UserDefaults.standard.set(inputMode.rawValue, forKey: "inputMode") }
+    }
     /// Runs on the main thread when the Mac applies a new stream configuration.
     @ObservationIgnored var onAppliedChange: (() -> Void)?
     /// Keys, modifiers and text for this session.

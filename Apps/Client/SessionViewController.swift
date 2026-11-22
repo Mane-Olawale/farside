@@ -22,7 +22,7 @@ import WireProtocol
 final class SessionViewController: UIViewController, UIPointerInteractionDelegate {
     private let connection: ConnectionModel
     private var viewport = Viewport(viewSize: Size2(0, 0), streamSize: Size2(0, 0))
-    private var recognizer = DirectTouchRecognizer()
+    private var recognizer = TouchGestureRecognizer()
     private var displayLink: CADisplayLink?
     /// The newest pointer position not yet sent, 0 to 1 on the display.
     private var pendingMove: Point2?
@@ -160,6 +160,10 @@ final class SessionViewController: UIViewController, UIPointerInteractionDelegat
             return TouchSample(id: ObjectIdentifier(touch).hashValue, location: Point2(p.x, p.y), isPencil: touch.type == .pencil)
         }
         let time = touches.map(\.timestamp).max() ?? CACurrentMediaTime()
+        if phase == .began, recognizer.mode != connection.inputMode, (event?.allTouches?.count ?? 1) == touches.count {
+            // A new gesture with no other fingers down: safe to switch mode.
+            recognizer.mode = connection.inputMode
+        }
         perform(recognizer.touches(phase, samples, at: .seconds(time)))
     }
 
@@ -307,6 +311,17 @@ final class SessionViewController: UIViewController, UIPointerInteractionDelegat
                     $0.continuous = true
                 }))
 
+            case .moveBy(let delta):
+                // Trackpad mode: from where the cursor is now, as far as the finger went.
+                let base = pendingMove ?? connection.cursor?.drawn?.position ?? Point2(0.5, 0.5)
+                let step = viewport.normalizedDelta(fromView: delta)
+                pendingMove = Point2(min(max(base.x + step.x, 0), 1), min(max(base.y + step.y, 0), 1))
+
+            case let .cursorButton(button, down, clickCount):
+                let position = pendingMove ?? connection.cursor?.drawn?.position ?? Point2(0.5, 0.5)
+                let point = viewport.view(fromNormalized: position)
+                perform([.button(button, down: down, at: point, clickCount: clickCount)])
+
             case .shortcut(let shortcut):
                 let arrow: UInt32 = switch shortcut {
                 case .missionControl: KeyMap.Usage.upArrow
@@ -375,7 +390,7 @@ final class SessionViewController: UIViewController, UIPointerInteractionDelegat
         heldButtons = []
         pendingMove = nil
         pointerButton = nil
-        recognizer = DirectTouchRecognizer()
+        recognizer = TouchGestureRecognizer()
         _ = trackpadMomentum.stop()
         connection.keyboard.reset()
         connection.sendInput(.releaseAll(.init()))
