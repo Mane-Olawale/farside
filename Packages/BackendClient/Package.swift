@@ -11,10 +11,11 @@ let package = Package(
         .library(name: "BackendClient", targets: ["BackendClient"]),
     ],
     dependencies: [
-        .package(path: "../WireProtocol"),
         .package(path: "../Pairing"),
+        .package(path: "../SecureStore"),
     ],
     targets: [
-        .target(name: "BackendClient", dependencies: ["WireProtocol", "Pairing"]),
+        .target(name: "BackendClient", dependencies: ["Pairing"]),
+        .testTarget(name: "BackendClientTests", dependencies: ["BackendClient", "Pairing", "SecureStore"]),
     ]
 )

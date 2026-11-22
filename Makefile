@@ -3,7 +3,7 @@ PROJECT = Farside.xcodeproj
 DERIVED = .build/DerivedData
 XCB = xcodebuild -project $(PROJECT) -derivedDataPath $(DERIVED) CODE_SIGNING_ALLOWED=NO
 
-.PHONY: generate test trust-check ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 component-input build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up server-test server-down
+.PHONY: generate test trust-check ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 component-input build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up server-test server-down backend-live-test
 
 generate:
 	xcodegen generate
@@ -158,3 +158,9 @@ server-up:
 
 server-down:
 	docker compose -f Server/deploy/compose.yml down
+
+# BackendClient against the running local backend: two throwaway devices, a ring and a signal.
+backend-live-test:
+	@devices=$$(docker compose -f Server/deploy/compose.yml exec -T api php artisan farside:test-devices) && \
+	key=$$(grep ^REVERB_APP_KEY Server/api/.env | cut -d= -f2) && \
+	FARSIDE_LIVE_BACKEND="$$devices" FARSIDE_REVERB_KEY="$$key" swift test --package-path Packages/BackendClient --filter LiveBackendTests
