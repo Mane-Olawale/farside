@@ -21,6 +21,7 @@
 		28ED65297F309D3DC8EFA37D /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 0A365AE11B1723128F0F0704 /* Telemetry */; };
 		2D17FCEACCCA5FC34760523C /* HostCapture in Frameworks */ = {isa = PBXBuildFile; productRef = C8600B3E1BF95C1B5336305D /* HostCapture */; };
 		2F76C7D5C84E857B4E696370 /* PermissionProbeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68D094EB6D9DF716DB2E31B2 /* PermissionProbeApp.swift */; };
+		313D53444485007327DC3151 /* HostInputHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E9A9B14EB61649671098C3F /* HostInputHandler.swift */; };
 		335ECAF1FC9F57B4C4AA4BDA /* SessionTransportWebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 81AE9DF1F34D6F72FC813FEB /* SessionTransportWebRTC */; };
 		34A4577D209AF6FAB755EB20 /* WireProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = E244A8B5B7C6379509D60385 /* WireProtocol */; };
 		35878DC2330DBE3CE343792B /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 97A85F4C3F22032ABBA48DB2 /* Telemetry */; };
@@ -127,6 +128,7 @@
 		9492B6E160FB1BC17B134570 /* LockProbeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockProbeApp.swift; sourceTree = "<group>"; };
 		959B17A4BE9EF2D80D41DF9A /* HostMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostMedia.swift; sourceTree = "<group>"; };
 		9D0997DD3EDAE2468F015B13 /* HostApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostApp.swift; sourceTree = "<group>"; };
+		9E9A9B14EB61649671098C3F /* HostInputHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostInputHandler.swift; sourceTree = "<group>"; };
 		9FD298710A0CFC18DEFF4E42 /* WireProtocol */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WireProtocol; path = Packages/WireProtocol; sourceTree = SOURCE_ROOT; };
 		A21D5F5E79F14EE223EA7ACC /* FarsideApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FarsideApp.swift; sourceTree = "<group>"; };
 		B3969F0C63D65B625DA3D6A2 /* GameController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameController.framework; path = System/Library/Frameworks/GameController.framework; sourceTree = SDKROOT; };
@@ -406,6 +408,7 @@
 				9D0997DD3EDAE2468F015B13 /* HostApp.swift */,
 				C2D635D582A06B83727ED2DE /* HostController.swift */,
 				FDA929D4216BC300CADD388F /* HostIdentity.swift */,
+				9E9A9B14EB61649671098C3F /* HostInputHandler.swift */,
 				959B17A4BE9EF2D80D41DF9A /* HostMedia.swift */,
 				943DD17E66EEA97B55CC1613 /* PeerToPeerWiFi.swift */,
 				09C3F58AE13FBF4A206FFE48 /* PermissionsView.swift */,
@@ -818,6 +821,7 @@
 				671D889CA00755B2A63E31F6 /* HostApp.swift in Sources */,
 				49BFA16F1D4A762686266BF1 /* HostController.swift in Sources */,
 				6441C6517B83772A155F587D /* HostIdentity.swift in Sources */,
+				313D53444485007327DC3151 /* HostInputHandler.swift in Sources */,
 				ED32CEF3B8690FF70E052743 /* HostMedia.swift in Sources */,
 				9AFAD0C90308BC5ECDDDAFCD /* PeerToPeerWiFi.swift in Sources */,
 				B990E4E175F4BC17658177C6 /* PermissionsView.swift in Sources */,

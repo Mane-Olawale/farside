@@ -83,10 +83,21 @@ final class HostController {
             reachability = .notReachable("Could not listen: \(error.localizedDescription)")
         }
         displayObserver = DisplayObserver { [weak self] _ in
-            Task { @MainActor in self?.session?.sendDisplays() }
+            Task { @MainActor in
+                self?.media?.input.refreshDisplays()
+                self?.session?.sendDisplays()
+            }
         }
         Task { await refreshScreenRecording() }
         refreshPeerToPeer()
+        // A grant made in System Settings applies at once; notice it without the menu opening.
+        Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3))
+                guard let self else { return }
+                if !self.accessibility { self.refreshAccessibility() }
+            }
+        }
     }
 
     /// Rereads the AirDrop and Universal Control settings. Cheap; called whenever the menu or
@@ -188,7 +199,11 @@ final class HostController {
             return
         }
 
+        let input = HostInputHandler(onAccessMissing: { [weak self] in
+            Task { @MainActor in self?.refreshAccessibility() }
+        })
         let media = HostMedia(
+            input: input,
             onState: { [weak self] state, client in
                 Task { @MainActor in self?.sessionChanged(state, client: client) }
             },

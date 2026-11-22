@@ -24,8 +24,12 @@ final class HostMedia: HostSessionDelegate, @unchecked Sendable {
 
     private let onState: @Sendable (SessionState, DeviceInfo?) -> Void
     private let onProblem: @Sendable (Problem) -> Void
+    /// The iPad's input, replayed on this Mac.
+    let input: HostInputHandler
 
-    init(onState: @escaping @Sendable (SessionState, DeviceInfo?) -> Void, onProblem: @escaping @Sendable (Problem) -> Void) {
+    init(input: HostInputHandler, onState: @escaping @Sendable (SessionState, DeviceInfo?) -> Void,
+         onProblem: @escaping @Sendable (Problem) -> Void) {
+        self.input = input
         self.onState = onState
         self.onProblem = onProblem
     }
@@ -147,7 +151,21 @@ final class HostMedia: HostSessionDelegate, @unchecked Sendable {
     }
 
     func hostSessionStateChanged(_ state: SessionState, client: DeviceInfo?) {
+        switch state {
+        case .securing:
+            input.sessionStarted()
+        case .paused, .recovering:
+            input.releaseAll(reason: "\(state)")
+        case .ended:
+            input.sessionEnded()
+        case .idle, .ringing, .negotiating, .streaming:
+            break
+        }
         onState(state, client)
+    }
+
+    func hostSessionInput(_ body: Envelope.OneOf_Body, seq: UInt32) {
+        input.handle(body, seq: seq)
     }
 
     // MARK: Wire form

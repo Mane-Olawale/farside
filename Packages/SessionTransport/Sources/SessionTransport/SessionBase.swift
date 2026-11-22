@@ -79,7 +79,7 @@ public class SessionBase: @unchecked Sendable {
     // MARK: Subclass hooks, on the queue
 
     func controlChannelOpened() {}
-    func received(_ body: Envelope.OneOf_Body) {}
+    func received(_ body: Envelope.OneOf_Body, seq: UInt32) {}
     func effect(_ effect: SessionEffect) {}
     func stateChanged(_ state: SessionState) {}
 
@@ -147,6 +147,15 @@ public class SessionBase: @unchecked Sendable {
         let item = DispatchWorkItem { [weak self] in self?.apply(.tick) }
         deadlineTimer = item
         queue.asyncAfter(deadline: .now() + delay.timeInterval, execute: item)
+    }
+
+    /// Sends a session message, but only while streaming: input and cursor updates mean nothing
+    /// before the handshake or while paused, and are dropped. Returns whether it went out.
+    @discardableResult
+    func sendWhileStreaming(_ body: Envelope.OneOf_Body) -> Bool {
+        guard machine.state == .streaming else { return false }
+        send(body)
+        return true
     }
 
     func send(_ body: Envelope.OneOf_Body) {
@@ -255,7 +264,7 @@ public class SessionBase: @unchecked Sendable {
         case .bye(let bye):
             apply(.peerEnded(SessionEndReason(wire: bye.reason)))
         default:
-            received(body)
+            received(body, seq: envelope.seq)
         }
     }
 
