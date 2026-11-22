@@ -49,6 +49,8 @@ final class ConnectionModel: Identifiable {
     var showsToolbar = true
     /// Runs on the main thread when the Mac applies a new stream configuration.
     @ObservationIgnored var onAppliedChange: (() -> Void)?
+    /// Keys, modifiers and text for this session.
+    @ObservationIgnored private(set) lazy var keyboard = KeyboardModel { [weak self] body in self?.sendInput(body) }
 
     /// The video surface. Lives as long as this connection.
     @ObservationIgnored let surface = VideoSurfaceView()

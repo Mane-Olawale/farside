@@ -13,8 +13,13 @@ import WireProtocol
 ///
 /// A display link on the main thread drives the recognizer's timers (long press, momentum),
 /// coalesces pointer moves to one per refresh (plan section 9, at most 120 a second), and sends
-/// heartbeats while a button is held.
-final class SessionViewController: UIViewController {
+/// heartbeats while a key or button is held.
+///
+/// Hardware keys arrive as presses on the touch view, which is also the software keyboard's text
+/// input. A trackpad or mouse moves the pointer by hover, clicks as indirect pointer touches with
+/// their own path (a click-drag is a drag at once, not a long press), and scrolls through pan
+/// recognizers that accept only scroll events. The iPadOS pointer is hidden over the video.
+final class SessionViewController: UIViewController, UIPointerInteractionDelegate {
     private let connection: ConnectionModel
     private var viewport = Viewport(viewSize: Size2(0, 0), streamSize: Size2(0, 0))
     private var recognizer = DirectTouchRecognizer()
@@ -25,6 +30,12 @@ final class SessionViewController: UIViewController {
     private var lastHeartbeat: CFTimeInterval = 0
     private var appliedKey: String?
     private let haptics = UIImpactFeedbackGenerator(style: .medium)
+    private var clicks = ClickCounter()
+    /// The trackpad or mouse button held, by the indirect touch that pressed it.
+    private var pointerButton: (touch: ObjectIdentifier, button: GestureAction.Button)?
+    private var trackpadMomentum = ScrollMomentum()
+    private var lastTrackpadTranslation = CGPoint.zero
+    private var lastWheelTranslation = CGPoint.zero
 
     init(connection: ConnectionModel) {
         self.connection = connection
@@ -39,6 +50,19 @@ final class SessionViewController: UIViewController {
         view.backgroundColor = .black
         view.owner = self
         self.view = view
+
+        // A trackpad or mouse: hover moves the pointer, pans with no touches are scrolls.
+        let hover = UIHoverGestureRecognizer(target: self, action: #selector(hovered))
+        view.addGestureRecognizer(hover)
+        let trackpad = UIPanGestureRecognizer(target: self, action: #selector(trackpadScrolled))
+        trackpad.allowedScrollTypesMask = .continuous
+        trackpad.allowedTouchTypes = []
+        view.addGestureRecognizer(trackpad)
+        let wheel = UIPanGestureRecognizer(target: self, action: #selector(wheelScrolled))
+        wheel.allowedScrollTypesMask = .discrete
+        wheel.allowedTouchTypes = []
+        view.addGestureRecognizer(wheel)
+        view.addInteraction(UIPointerInteraction(delegate: self))
     }
 
     override func viewDidLoad() {
@@ -52,6 +76,9 @@ final class SessionViewController: UIViewController {
             DispatchQueue.main.async { self?.updateScene() }
         }
         connection.onAppliedChange = { [weak self] in self?.syncViewport() }
+        connection.keyboard.onSoftwareKeyboardChange = { [weak self] shown in
+            (self?.view as? TouchView)?.setSoftwareKeyboard(shown)
+        }
         NotificationCenter.default.addObserver(self, selector: #selector(resignActive),
                                                name: UIApplication.willResignActiveNotification, object: nil)
     }
@@ -62,6 +89,8 @@ final class SessionViewController: UIViewController {
         link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
         link.add(to: .main, forMode: .common)
         displayLink = link
+        // First responder for hardware keys; the software keyboard stays hidden until asked for.
+        view.becomeFirstResponder()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -121,6 +150,11 @@ final class SessionViewController: UIViewController {
 
     fileprivate func touches(_ phase: TouchPhase, _ touches: Set<UITouch>, event: UIEvent?) {
         guard connection.state == .streaming else { return }
+        // Trackpad and mouse clicks have their own path.
+        let pointer = touches.filter { $0.type == .indirectPointer }
+        for touch in pointer { pointerTouch(phase, touch, event: event) }
+        let touches = touches.subtracting(pointer)
+        guard !touches.isEmpty else { return }
         let samples = touches.map { touch in
             let p = touch.location(in: view)
             return TouchSample(id: ObjectIdentifier(touch).hashValue, location: Point2(p.x, p.y), isPencil: touch.type == .pencil)
@@ -129,10 +163,108 @@ final class SessionViewController: UIViewController {
         perform(recognizer.touches(phase, samples, at: .seconds(time)))
     }
 
+    // MARK: Trackpad and mouse
+
+    /// A trackpad or mouse click. Down presses at once, so click-drag is a drag (plan section 9,
+    /// hardware pointer).
+    private func pointerTouch(_ phase: TouchPhase, _ touch: UITouch, event: UIEvent?) {
+        let p = touch.location(in: view)
+        let point = Point2(p.x, p.y)
+        let id = ObjectIdentifier(touch)
+        switch phase {
+        case .began:
+            guard pointerButton == nil else { return }
+            let button: GestureAction.Button = event?.buttonMask.contains(.secondary) == true ? .right : .left
+            pointerButton = (id, button)
+            let count = clicks.down(button == .left ? 1 : 2, at: point, time: .seconds(touch.timestamp))
+            perform([.move(point), .button(button, down: true, at: point, clickCount: count)])
+        case .moved:
+            guard pointerButton?.touch == id else { return }
+            perform([.move(point)])
+        case .ended, .cancelled:
+            guard let held = pointerButton, held.touch == id else { return }
+            pointerButton = nil
+            perform([.button(held.button, down: false, at: point, clickCount: 1)])
+        }
+    }
+
+    @objc private func hovered(_ recognizer: UIHoverGestureRecognizer) {
+        guard connection.state == .streaming, pointerButton == nil else { return }
+        switch recognizer.state {
+        case .began, .changed:
+            let p = recognizer.location(in: view)
+            perform([.move(Point2(p.x, p.y))])
+        default:
+            break
+        }
+    }
+
+    /// Two fingers on a trackpad: gesture phases pass through, and momentum is synthesized from
+    /// the release velocity, as for touch scrolling.
+    @objc private func trackpadScrolled(_ pan: UIPanGestureRecognizer) {
+        let translation = pan.translation(in: view)
+        let delta = Point2(translation.x - lastTrackpadTranslation.x, translation.y - lastTrackpadTranslation.y)
+        lastTrackpadTranslation = translation
+        let now = Duration.seconds(CACurrentMediaTime())
+        switch pan.state {
+        case .began:
+            perform(trackpadMomentum.stop().map { [$0] } ?? [])
+            lastTrackpadTranslation = translation
+            perform([.scroll(dx: translation.x, dy: translation.y, phase: .began, momentum: .none)])
+        case .changed:
+            perform([.scroll(dx: delta.x, dy: delta.y, phase: .changed, momentum: .none)])
+        case .ended:
+            perform([.scroll(dx: delta.x, dy: delta.y, phase: .ended, momentum: .none)])
+            let velocity = pan.velocity(in: view)
+            trackpadMomentum.start(velocity: Point2(velocity.x, velocity.y), at: now)
+            lastTrackpadTranslation = .zero
+        case .cancelled, .failed:
+            perform([.scroll(dx: 0, dy: 0, phase: .cancelled, momentum: .none)])
+            lastTrackpadTranslation = .zero
+        default:
+            break
+        }
+    }
+
+    /// A mouse wheel: line-based scroll, no phases (plan section 9).
+    @objc private func wheelScrolled(_ pan: UIPanGestureRecognizer) {
+        let translation = pan.translation(in: view)
+        let dx = translation.x - lastWheelTranslation.x, dy = translation.y - lastWheelTranslation.y
+        lastWheelTranslation = pan.state == .ended || pan.state == .cancelled ? .zero : translation
+        guard connection.applied != nil, dx != 0 || dy != 0 else { return }
+        // UIKit reports about 10 points per notch.
+        func lines(_ v: Double) -> Float { v == 0 ? 0 : Float((v / 10).rounded(.awayFromZero)) }
+        connection.sendInput(.scroll(.with {
+            $0.dx = lines(dx)
+            $0.dy = lines(dy)
+            $0.continuous = false
+        }))
+    }
+
+    func pointerInteraction(_ interaction: UIPointerInteraction, styleFor region: UIPointerRegion) -> UIPointerStyle? {
+        // The Mac's cursor is drawn in the video; the iPadOS pointer would hide it.
+        .hidden()
+    }
+
+    // MARK: Keys
+
+    fileprivate func press(_ presses: Set<UIPress>, down: Bool) -> Bool {
+        guard connection.state == .streaming else { return false }
+        var handled = false
+        for press in presses {
+            guard let key = press.key else { continue }
+            handled = true
+            connection.keyboard.hardware(UInt32(key.keyCode.rawValue), down: down,
+                                         capsLock: key.modifierFlags.contains(.alphaShift))
+        }
+        return handled
+    }
+
     @objc private func tick(_ link: CADisplayLink) {
         perform(recognizer.advance(to: .seconds(CACurrentMediaTime())))
+        if let step = trackpadMomentum.advance(to: .seconds(CACurrentMediaTime())) { perform([step]) }
         flushMove()
-        if !heldButtons.isEmpty, link.timestamp - lastHeartbeat >= 0.1 {
+        if !heldButtons.isEmpty || connection.keyboard.anyHeld, link.timestamp - lastHeartbeat >= 0.1 {
             lastHeartbeat = link.timestamp
             connection.sendInput(.inputHeartbeat(.init()))
         }
@@ -220,13 +352,17 @@ final class SessionViewController: UIViewController {
 
     /// A shortcut as real key presses: modifier down, key down and up, modifier up.
     private func sendChord(modifier: UInt32, bit: ModifierSet, key: UInt32) {
-        for (usage, down, modifiers) in [(modifier, true, bit), (key, true, bit), (key, false, bit), (modifier, false, ModifierSet())] {
-            connection.sendInput(.key(.with {
-                $0.hidUsage = usage
-                $0.down = down
-                $0.modifiers = modifiers.rawValue
-            }))
-        }
+        connection.keyboard.chord(bit, key)
+    }
+
+    fileprivate func softwareText(_ text: String) {
+        guard connection.state == .streaming else { return }
+        connection.keyboard.text(text)
+    }
+
+    fileprivate func softwareDelete() {
+        guard connection.state == .streaming else { return }
+        connection.keyboard.tap(KeyMap.Usage.deleteBackward)
     }
 
     /// Nothing may stay held on the Mac while the iPad is not in front (plan section 7, app
@@ -238,7 +374,10 @@ final class SessionViewController: UIViewController {
     private func releaseAll() {
         heldButtons = []
         pendingMove = nil
+        pointerButton = nil
         recognizer = DirectTouchRecognizer()
+        _ = trackpadMomentum.stop()
+        connection.keyboard.reset()
         connection.sendInput(.releaseAll(.init()))
     }
 
@@ -253,13 +392,51 @@ final class SessionViewController: UIViewController {
     }
 }
 
-/// Hands raw touches to the controller.
-private final class TouchView: UIView {
+/// Hands raw touches and key presses to the controller, and is the software keyboard's text input
+/// (plan section 9: autocorrect, smart punctuation and capitalization off).
+private final class TouchView: UIView, UIKeyInput {
     weak var owner: SessionViewController?
+    /// An empty input view keeps the software keyboard away while hardware keys still arrive.
+    private var keyboardHidden = UIView()
+    private var showsKeyboard = false
+
+    override var canBecomeFirstResponder: Bool { true }
+    override var inputView: UIView? { showsKeyboard ? nil : keyboardHidden }
+
+    func setSoftwareKeyboard(_ shown: Bool) {
+        showsKeyboard = shown
+        if !isFirstResponder { becomeFirstResponder() }
+        reloadInputViews()
+    }
+
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) { owner?.touches(.began, touches, event: event) }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) { owner?.touches(.moved, touches, event: event) }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { owner?.touches(.ended, touches, event: event) }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { owner?.touches(.cancelled, touches, event: event) }
+
+    // Hardware keys. Handled presses do not go on to `insertText`.
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        if owner?.press(presses, down: true) != true { super.pressesBegan(presses, with: event) }
+    }
+    override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        if owner?.press(presses, down: false) != true { super.pressesEnded(presses, with: event) }
+    }
+    override func pressesCancelled(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        if owner?.press(presses, down: false) != true { super.pressesCancelled(presses, with: event) }
+    }
+
+    // MARK: UIKeyInput, the software keyboard
+
+    var hasText: Bool { true }
+    func insertText(_ text: String) { owner?.softwareText(text) }
+    func deleteBackward() { owner?.softwareDelete() }
+
+    var autocorrectionType: UITextAutocorrectionType { get { .no } set {} }
+    var autocapitalizationType: UITextAutocapitalizationType { get { .none } set {} }
+    var spellCheckingType: UITextSpellCheckingType { get { .no } set {} }
+    var smartQuotesType: UITextSmartQuotesType { get { .no } set {} }
+    var smartDashesType: UITextSmartDashesType { get { .no } set {} }
+    var smartInsertDeleteType: UITextSmartInsertDeleteType { get { .no } set {} }
 }
 
 /// The controller in SwiftUI.

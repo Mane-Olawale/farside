@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02DE0DCC91BDC0C46E9E000C /* KeyboardModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9B887DFF55403452F8367AA /* KeyboardModel.swift */; };
 		0533E548596307814BECC6BE /* ClientVideo in Frameworks */ = {isa = PBXBuildFile; productRef = 7AE3588CA35D5B906991D244 /* ClientVideo */; };
 		0B89B673A79FF33EB0DC1C57 /* ProbeMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98F21FDD1D45C214B111F91 /* ProbeMessages.swift */; };
 		0BDB1FC62AE363EEF8C5143D /* WireProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = A66C36079F4A1498908EAEAE /* WireProtocol */; };
@@ -154,6 +155,7 @@
 		F20F62F3484ECB5CD40C0340 /* LoopbackOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopbackOptions.swift; sourceTree = "<group>"; };
 		F6D10B45155A81A4AA03E47F /* SessionTransport */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SessionTransport; path = Packages/SessionTransport; sourceTree = SOURCE_ROOT; };
 		F98B06750574B57538F301F6 /* PatternView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternView.swift; sourceTree = "<group>"; };
+		F9B887DFF55403452F8367AA /* KeyboardModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardModel.swift; sourceTree = "<group>"; };
 		FDA4A301379C2BAA44F9EC89 /* InputLoggerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputLoggerApp.swift; sourceTree = "<group>"; };
 		FDA929D4216BC300CADD388F /* HostIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostIdentity.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -330,6 +332,7 @@
 				1532C369ED4863404CA2FD0C /* CursorModel.swift */,
 				D871B555B2BD9F543640702B /* DeviceListModel.swift */,
 				A21D5F5E79F14EE223EA7ACC /* FarsideApp.swift */,
+				F9B887DFF55403452F8367AA /* KeyboardModel.swift */,
 				BD16B6752507F70D5A529064 /* SessionScreen.swift */,
 				395A52FEB6A32EA90B1184C7 /* SessionViewController.swift */,
 			);
@@ -820,6 +823,7 @@
 				1814B8EC3A896F2A1933152B /* CursorModel.swift in Sources */,
 				6F631857D8289CFC639894A4 /* DeviceListModel.swift in Sources */,
 				23863E09DADA8F4581AC7608 /* FarsideApp.swift in Sources */,
+				02DE0DCC91BDC0C46E9E000C /* KeyboardModel.swift in Sources */,
 				F83B7E00227A0C5913D25F76 /* SessionScreen.swift in Sources */,
 				E8228E7A86D64DC92B5A7397 /* SessionViewController.swift in Sources */,
 			);

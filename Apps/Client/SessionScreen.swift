@@ -1,3 +1,4 @@
+import InputModel
 import SessionTransport
 import SwiftUI
 
@@ -36,12 +37,67 @@ struct SessionScreen: View {
     }
 }
 
+/// The floating toolbar (plan section 7), Phase 2's subset: keyboard, sticky modifiers, common
+/// keys, function keys, shortcuts, stats and disconnect. The display picker, quality and input
+/// mode arrive later.
 private struct ControlPill: View {
     let connection: ConnectionModel
     let close: () -> Void
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 2) {
+            if connection.state == .streaming {
+                let keyboard = connection.keyboard
+                Button {
+                    keyboard.softwareKeyboardShown.toggle()
+                } label: {
+                    Image(systemName: keyboard.softwareKeyboardShown ? "keyboard.chevron.compact.down" : "keyboard")
+                }
+                .accessibilityLabel(keyboard.softwareKeyboardShown ? "Hide keyboard" : "Show keyboard")
+
+                Divider().frame(height: 20)
+                ForEach(Self.modifiers, id: \.label) { modifier in
+                    ModifierButton(label: modifier.label, name: modifier.name,
+                                   sticky: keyboard.sticky.contains(modifier.bit),
+                                   locked: keyboard.locked.contains(modifier.bit)) {
+                        keyboard.toggle(modifier.bit)
+                    }
+                }
+
+                Divider().frame(height: 20)
+                key("esc", "Escape", KeyMap.Usage.escape)
+                key("⇥", "Tab", KeyMap.Usage.tab)
+                key("←", "Left arrow", KeyMap.Usage.leftArrow)
+                key("↑", "Up arrow", KeyMap.Usage.upArrow)
+                key("↓", "Down arrow", KeyMap.Usage.downArrow)
+                key("→", "Right arrow", KeyMap.Usage.rightArrow)
+
+                Menu {
+                    ForEach(0..<12, id: \.self) { n in
+                        Button("F\(n + 1)") { keyboard.tap(KeyMap.Usage.f1 + UInt32(n)) }
+                    }
+                    Divider()
+                    Button("Forward Delete") { keyboard.tap(KeyMap.Usage.deleteForward) }
+                    Button("Home") { keyboard.tap(KeyMap.Usage.home) }
+                    Button("End") { keyboard.tap(KeyMap.Usage.end) }
+                    Button("Page Up") { keyboard.tap(KeyMap.Usage.pageUp) }
+                    Button("Page Down") { keyboard.tap(KeyMap.Usage.pageDown) }
+                } label: {
+                    Text("fn…").font(.callout.monospaced())
+                }
+                .accessibilityLabel("Function and navigation keys")
+
+                Menu {
+                    ForEach(Self.shortcuts, id: \.name) { shortcut in
+                        Button(shortcut.name) { keyboard.chord(shortcut.modifiers, shortcut.key) }
+                    }
+                } label: {
+                    Image(systemName: "command.square")
+                }
+                .accessibilityLabel("Mac shortcuts")
+                Divider().frame(height: 20)
+            }
+
             Button {
                 connection.showsStats.toggle()
             } label: {
@@ -54,9 +110,73 @@ private struct ControlPill: View {
             .accessibilityLabel("Disconnect")
         }
         .buttonStyle(.borderless)
-        .padding(8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .background(.ultraThinMaterial, in: Capsule())
-        .opacity(0.8)
+        .opacity(0.9)
+    }
+
+    private func key(_ label: String, _ name: String, _ usage: UInt32) -> some View {
+        Button {
+            connection.keyboard.tap(usage)
+        } label: {
+            Text(label).font(.callout.monospaced()).frame(minWidth: 28, minHeight: 28)
+        }
+        .accessibilityLabel(name)
+    }
+
+    struct Modifier {
+        let label: String
+        let name: String
+        let bit: ModifierSet
+    }
+
+    static let modifiers = [
+        Modifier(label: "⌘", name: "Command", bit: .leftCommand),
+        Modifier(label: "⌥", name: "Option", bit: .leftOption),
+        Modifier(label: "⌃", name: "Control", bit: .leftControl),
+        Modifier(label: "⇧", name: "Shift", bit: .leftShift),
+        Modifier(label: "fn", name: "Function", bit: .function),
+    ]
+
+    struct Shortcut {
+        let name: String
+        let modifiers: ModifierSet
+        let key: UInt32
+    }
+
+    /// Plan section 7 and 9: what iPadOS keeps for itself, sent from the menu instead.
+    static let shortcuts = [
+        Shortcut(name: "Mission Control", modifiers: .leftControl, key: KeyMap.Usage.upArrow),
+        Shortcut(name: "Spotlight", modifiers: .leftCommand, key: KeyMap.Usage.space),
+        Shortcut(name: "App Switcher", modifiers: .leftCommand, key: KeyMap.Usage.tab),
+        Shortcut(name: "Show or Hide the Dock", modifiers: [.leftCommand, .leftOption], key: 0x07),  // D
+        Shortcut(name: "Lock Screen", modifiers: [.leftControl, .leftCommand], key: 0x14),           // Q
+        Shortcut(name: "Screenshot", modifiers: [.leftCommand, .leftShift], key: 0x20),              // 3
+        Shortcut(name: "Screenshot of a Selection", modifiers: [.leftCommand, .leftShift], key: 0x21), // 4
+        Shortcut(name: "Force Quit", modifiers: [.leftCommand, .leftOption], key: KeyMap.Usage.escape),
+    ]
+}
+
+/// A toolbar modifier: outlined when it applies to the next key, filled when locked.
+private struct ModifierButton: View {
+    let label: String
+    let name: String
+    let sticky: Bool
+    let locked: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.callout.monospaced().weight(locked ? .bold : .regular))
+                .frame(minWidth: 28, minHeight: 28)
+                .foregroundStyle(locked ? Color.black : Color.primary)
+                .background(locked ? Color.accentColor : .clear, in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.accentColor, lineWidth: sticky ? 1.5 : 0))
+        }
+        .accessibilityLabel(name)
+        .accessibilityValue(locked ? "Locked" : sticky ? "On for the next key" : "Off")
     }
 }
 

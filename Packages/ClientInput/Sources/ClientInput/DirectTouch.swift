@@ -72,9 +72,6 @@ public struct DirectTouchRecognizer: Sendable {
         /// A spread change beyond this fraction makes two fingers a pinch.
         public var pinchThreshold: Double = 0.08
         public var swipeDistance: Double = 60
-        /// Momentum: decay per second, and the speed it stops at, in points per second.
-        public var momentumDecay: Double = 0.06
-        public var momentumMinimum: Double = 20
         public init() {}
     }
 
@@ -110,9 +107,7 @@ public struct DirectTouchRecognizer: Sendable {
     private var touches: [Int: Point2] = [:]
     private var lastTap: (at: Point2, time: Duration, count: Int)?
     private var lastTime: Duration = .zero
-    /// Recent scroll deltas, for the release velocity.
-    private var scrollHistory: [(time: Duration, delta: Point2)] = []
-    private var momentum: (velocity: Point2, last: Duration, began: Bool)?
+    private var momentum = ScrollMomentum()
 
     public init(settings: Settings = Settings()) {
         self.settings = settings
@@ -120,7 +115,7 @@ public struct DirectTouchRecognizer: Sendable {
 
     /// When `advance` next has something to do.
     public var nextDeadline: Duration? {
-        if momentum != nil { return lastTime }
+        if momentum.isRunning { return lastTime }
         if case let .one(_, _, startTime, _, .pending) = state, !isPencilActive { return startTime + settings.longPress }
         return nil
     }
@@ -167,21 +162,7 @@ public struct DirectTouchRecognizer: Sendable {
             out.append(.move(start))
             out.append(.longPress)
         }
-        if let current = momentum {
-            let dt = seconds(now - current.last)
-            guard dt > 0 else { lastTime = now; return out }
-            let factor = pow(settings.momentumDecay, dt)
-            let velocity = Point2(current.velocity.x * factor, current.velocity.y * factor)
-            let speed = (velocity.x * velocity.x + velocity.y * velocity.y).squareRoot()
-            if speed < settings.momentumMinimum {
-                out.append(.scroll(dx: 0, dy: 0, phase: .none, momentum: .ended))
-                momentum = nil
-            } else {
-                out.append(.scroll(dx: velocity.x * dt, dy: velocity.y * dt, phase: .none,
-                                   momentum: current.began ? .changed : .began))
-                momentum = (velocity, now, true)
-            }
-        }
+        if let step = momentum.advance(to: now) { out.append(step) }
         lastTime = now
         return out
     }
@@ -265,7 +246,6 @@ public struct DirectTouchRecognizer: Sendable {
                     out.append(.pan(Point2(mid.x - start.x, mid.y - start.y)))
                 } else if distance(mid, start) > settings.slop {
                     next = .scrolling
-                    scrollHistory = []
                     out.append(scroll(Point2(mid.x - start.x, mid.y - start.y), phase: .began, at: now))
                 }
             case .scrolling:
@@ -372,30 +352,17 @@ public struct DirectTouchRecognizer: Sendable {
     // MARK: Scroll
 
     private mutating func scroll(_ delta: Point2, phase: GestureAction.Phase, at now: Duration) -> GestureAction {
-        scrollHistory.append((now, delta))
-        scrollHistory.removeAll { now - $0.time > .milliseconds(100) }
+        momentum.record(delta, at: now)
         return .scroll(dx: delta.x, dy: delta.y, phase: phase, momentum: .none)
     }
 
     private mutating func endScroll(cancelled: Bool) -> [GestureAction] {
-        let out: [GestureAction] = [.scroll(dx: 0, dy: 0, phase: cancelled ? .cancelled : .ended, momentum: .none)]
-        defer { scrollHistory = [] }
-        guard !cancelled, let first = scrollHistory.first, let last = scrollHistory.last else { return out }
-        let span = seconds(last.time - first.time)
-        guard span > 0.005 else { return out }
-        // Velocity over the last 100 ms, leaving out the first sample's own delta.
-        let total = scrollHistory.dropFirst().reduce(Point2(0, 0)) { Point2($0.x + $1.delta.x, $0.y + $1.delta.y) }
-        let velocity = Point2(total.x / span, total.y / span)
-        if (velocity.x * velocity.x + velocity.y * velocity.y).squareRoot() >= settings.momentumMinimum * 2 {
-            momentum = (velocity, last.time, false)
-        }
-        return out
+        if !cancelled { momentum.release() }
+        return [.scroll(dx: 0, dy: 0, phase: cancelled ? .cancelled : .ended, momentum: .none)]
     }
 
     private mutating func stopMomentum() -> [GestureAction] {
-        guard let current = momentum else { return [] }
-        momentum = nil
-        return current.began ? [.scroll(dx: 0, dy: 0, phase: .none, momentum: .ended)] : []
+        momentum.stop().map { [$0] } ?? []
     }
 
     // MARK: Helpers
@@ -425,9 +392,4 @@ public struct DirectTouchRecognizer: Sendable {
         ((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y)).squareRoot()
     }
 
-    private func seconds(_ d: Duration) -> Double {
-        Double(d.components.seconds) + Double(d.components.attoseconds) / 1e18
-    }
 }
-
-import Foundation
