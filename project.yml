@@ -192,6 +192,7 @@ targets:
       - path: Tools/InputProbe
     dependencies:
       - package: HostInput
+      - package: InputModel
       - package: Telemetry
       - sdk: Carbon.framework
     settings:

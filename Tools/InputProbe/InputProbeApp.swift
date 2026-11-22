@@ -4,8 +4,10 @@ import os
 import Telemetry
 
 /// Spike S2 rig. Posts synthetic input into its own window and checks what AppKit delivers.
+/// With `--component` it runs Phase 2's input component tests instead (`ComponentSuite`).
 ///
 ///     --out path.json   report path, default ~/Library/Logs/Farside/s2-<time>.json
+///     --component       the component tests; report default component-input-<time>.json
 @main
 @MainActor
 final class InputProbeApp: NSObject, NSApplicationDelegate {
@@ -54,6 +56,13 @@ final class InputProbeApp: NSObject, NSApplicationDelegate {
         }
         Task {
             try? await Task.sleep(for: .milliseconds(600))
+            if CommandLine.arguments.contains("--component") {
+                let suite = ComponentSuite(ui: ui, injector: injector, recorder: recorder)
+                let cases = await suite.run()
+                finish(error: suite.keyboardAborted ? "The window lost focus; keyboard cases were stopped." : nil,
+                       cases: cases, injector: injector)
+                return
+            }
             let probe = Probe(ui: ui, injector: injector, recorder: recorder)
             let cases = await probe.run()
             finish(error: probe.keyboardAborted ? "The probe window lost focus; keyboard cases were stopped." : nil,
@@ -99,7 +108,8 @@ final class InputProbeApp: NSObject, NSApplicationDelegate {
             return URL(fileURLWithPath: (args[i + 1] as NSString).expandingTildeInPath)
         }
         let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
-        return FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/Logs/Farside/s2-\(stamp).json")
+        let prefix = args.contains("--component") ? "component-input" : "s2"
+        return FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/Logs/Farside/\(prefix)-\(stamp).json")
     }
 
     private static func sysctl(_ name: String) -> String {

@@ -3,7 +3,7 @@ PROJECT = Farside.xcodeproj
 DERIVED = .build/DerivedData
 XCB = xcodebuild -project $(PROJECT) -derivedDataPath $(DERIVED) CODE_SIGNING_ALLOWED=NO
 
-.PHONY: generate test ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up
+.PHONY: generate test ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 component-input build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up
 
 generate:
 	xcodegen generate
@@ -68,6 +68,18 @@ build-inputprobe: generate
 # Takes about a minute and moves the pointer. Keep hands off the keyboard and mouse.
 run-s2: build-inputprobe
 	open -W $(DERIVED)/Build/Products/Release/InputProbe.app
+
+# Phase 2 component tests for input (plan section 17): the product's replayer posting into a
+# test window. Needs InputProbe in Accessibility. Takes about 15 s and moves the pointer; keep
+# hands off the keyboard and mouse. Fails if any case fails.
+COMPONENT_REPORT ?= $(HOME)/Library/Logs/Farside/component-input-latest.json
+component-input: build-inputprobe
+	rm -f "$(COMPONENT_REPORT)"
+	open -W $(DERIVED)/Build/Products/Release/InputProbe.app --args --component --out "$(COMPONENT_REPORT)"
+	@python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); \
+	[print(("PASS " if c["pass"] else "FAIL ")+c["name"]+"  "+json.dumps(c["observed"],ensure_ascii=False)) for c in r["cases"]]; \
+	print("error:", r.get("error")) if r.get("error") else None; \
+	sys.exit(0 if r["failed"]==0 and not r.get("error") and r["passed"]>0 else 1)' "$(COMPONENT_REPORT)"
 
 # Spike S3. The host captures and sends over WebRTC; the viewer runs on an iPad.
 build-s3: generate
