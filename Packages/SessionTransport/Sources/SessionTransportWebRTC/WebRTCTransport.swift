@@ -244,7 +244,7 @@ public final class WebRTCTransport: SessionTransport, @unchecked Sendable {
         case .candidate:
             guard let candidate = message.body.candidate else { return }
             connection.add(RTCIceCandidate(sdp: candidate, sdpMLineIndex: message.body.sdpMLineIndex ?? 0, sdpMid: message.body.sdpMid)) { _ in }
-        case .reject, .bye:
+        case .join, .reject, .bye:
             // Session-level messages. The session layer acts on them.
             break
         }

@@ -7,6 +7,9 @@ import Foundation
 /// One signaling message as a transport produces and consumes it.
 public struct SignalMessage: Sendable, Equatable {
     public enum Kind: String, Codable, Sendable {
+        /// The client's first message on a LAN socket. It carries the session id the host stamps
+        /// its own messages with, so the host can speak first (it sends the offer).
+        case join
         case offer, answer, candidate
         /// The host refuses this session, for example because it is busy.
         case reject

@@ -44,7 +44,8 @@ import WireProtocol
     }
 
     /// The real WebSocket path: an advertiser on this Mac and a connection to its port on loopback.
-    /// Messages arrive in order, stamped with the client's session id.
+    /// As in the product, the host speaks first: it sends the offer as soon as its side reports
+    /// ready, which happens only once the client's join has told it the session id.
     @Test(.timeLimit(.minutes(1)))
     func webSocketRoundTripOnLoopback() async throws {
         let (portStream, portContinuation) = AsyncStream.makeStream(of: UInt16.self)
@@ -56,10 +57,12 @@ import WireProtocol
             id: "test-host", name: "Farside test \(UUID().uuidString.prefix(6))",
             onConnection: { connection in
                 accepted.set(connection)
-                connection.start(onState: { _ in }, onMessage: { message in
-                    hostContinuation.yield(message)
-                    if message.kind == .offer { connection.send(.answer("answer-sdp")) }
-                })
+                connection.start(onState: { state in
+                    if state == .ready {
+                        connection.send(.offer("offer-sdp"))
+                        connection.send(.candidate("c1", mid: "0", lineIndex: 0))
+                    }
+                }, onMessage: { hostContinuation.yield($0) })
             },
             onState: { state in if case .ready(let port) = state { portContinuation.yield(port) } })
         try advertiser.start()
@@ -68,19 +71,18 @@ import WireProtocol
         var ports = portStream.makeAsyncIterator()
         let port = try #require(await ports.next())
         let client = SignalingConnection.connect(host: "127.0.0.1", port: port)
-        client.start(onState: { state in
-            if state == .ready {
-                client.send(.offer("offer-sdp"))
-                client.send(.candidate("c1", mid: "0", lineIndex: 0))
-            }
-        }, onMessage: { clientContinuation.yield($0) })
+        client.start(onState: { _ in }, onMessage: { message in
+            clientContinuation.yield(message)
+            if message.kind == .offer { client.send(.answer("answer-sdp")) }
+        })
         defer { client.close() }
 
-        var hostIterator = hostReceived.makeAsyncIterator()
-        #expect(await hostIterator.next() == .offer("offer-sdp"))
-        #expect(await hostIterator.next() == .candidate("c1", mid: "0", lineIndex: 0))
         var clientIterator = clientReceived.makeAsyncIterator()
-        #expect(await clientIterator.next() == .answer("answer-sdp"))
+        #expect(await clientIterator.next() == .offer("offer-sdp"))
+        #expect(await clientIterator.next() == .candidate("c1", mid: "0", lineIndex: 0))
+        // The join is consumed by the host's connection, never delivered.
+        var hostIterator = hostReceived.makeAsyncIterator()
+        #expect(await hostIterator.next() == .answer("answer-sdp"))
         accepted.get()?.close()
     }
 }

@@ -185,10 +185,14 @@ public final class SignalingConnection: @unchecked Sendable {
     private var onState: (@Sendable (State) -> Void)?
     private var onMessage: (@Sendable (SignalMessage) -> Void)?
     private var closed = false
+    /// The host side learns the session id from the client's join, and reports ready only then:
+    /// before it, nothing it sends could be stamped.
+    private let isHostSide: Bool
 
     init(connection: NWConnection, session: String?) {
         self.connection = connection
         self.session = session
+        isHostSide = session == nil
     }
 
     /// Client side: a new session to a Mac found by `LANBrowser`.
@@ -221,7 +225,11 @@ public final class SignalingConnection: @unchecked Sendable {
                 // Nothing is reported after closed, not even a late waiting.
                 guard let self, !self.closed else { return }
                 switch state {
-                case .ready: onState(.ready)
+                case .ready:
+                    if !self.isHostSide {
+                        self.send(.init(kind: .join))
+                        onState(.ready)
+                    }
                 case .failed(let error): self.finish("\(error)")
                 case .cancelled: self.finish(nil)
                 case .waiting: onState(.connecting)
@@ -266,9 +274,15 @@ public final class SignalingConnection: @unchecked Sendable {
 
     private func accept(_ data: Data) {
         guard let envelope = try? SignalEnvelope.decoded(data) else { return }
-        if session == nil { session = envelope.session }
+        var adopted = false
+        if session == nil {
+            session = envelope.session
+            adopted = true
+        }
         guard envelope.session == session, envelope.seq > lastReceivedSeq else { return }
         lastReceivedSeq = envelope.seq
+        if adopted, !closed { onState?(.ready) }
+        if envelope.type == .join { return }
         onMessage?(envelope.message)
     }
 

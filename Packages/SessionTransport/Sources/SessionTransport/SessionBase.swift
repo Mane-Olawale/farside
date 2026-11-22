@@ -188,6 +188,8 @@ public class SessionBase: @unchecked Sendable {
 
     private func signalingMessage(_ message: SignalMessage) {
         switch message.kind {
+        case .join:
+            break  // Consumed by the signaling connection.
         case .offer, .answer, .candidate:
             transport?.handle(message)
         case .bye, .reject:
