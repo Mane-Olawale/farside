@@ -1245,6 +1245,13 @@ Messages go up over HTTPS and come down over the WebSocket.
 
 The backend never parses envelope bodies. It reads the routing fields and passes the rest through.
 
+Decided in Phase 3:
+
+- **Device ids come from the device.** Each app makes its own id (`dev_` and 26 base32 characters) with its key, so pairing and LAN sessions need no backend. `POST /v1/auth/apple` takes the device's id, name and public key with the Apple token, registers the device on first sign-in, and returns its token. A device id stays with one account and one key; a new key means a new id. `POST /v1/devices` refreshes the other details.
+- **The ring is unsigned.** The backend has no device key, so `ring` is only a hint. The Mac checks the caller against its pins and answers with a signed `accept`.
+- **Pairing can go through the backend.** `pair` and `paired` envelopes need no session record, so a QR code can be answered when the iPad and the Mac are on different networks.
+- **Local ports.** `make server-up` serves the API on 47880 and Reverb on 47881, next to the LAN listener on 47870.
+
 ### Data model
 
 | Table | Key columns | Notes |

@@ -3,7 +3,7 @@ PROJECT = Farside.xcodeproj
 DERIVED = .build/DerivedData
 XCB = xcodebuild -project $(PROJECT) -derivedDataPath $(DERIVED) CODE_SIGNING_ALLOWED=NO
 
-.PHONY: generate test trust-check ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 component-input build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up
+.PHONY: generate test trust-check ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 component-input build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up server-test server-down
 
 generate:
 	xcodegen generate
@@ -24,8 +24,14 @@ test:
 trust-check:
 	@if grep -rn "anySignerForSpikeRigs" Apps; then echo "Apps must use pinned trust only."; exit 1; fi
 
-# What CI runs (.github/workflows/ci.yml): package tests, then both app builds.
-ci: trust-check test build-client build-host
+# The backend (plan section 13): its tests on SQLite in memory, and the formatter.
+server-test:
+	cd Server/api && composer install --no-interaction --prefer-dist --quiet \
+		&& { [ -f .env ] || { cp .env.example .env && php artisan key:generate --quiet; }; } \
+		&& php artisan test && ./vendor/bin/pint --test
+
+# What CI runs (.github/workflows/ci.yml): package tests, backend tests, then both app builds.
+ci: trust-check test server-test build-client build-host
 
 build: build-client build-host build-testpattern
 
@@ -144,8 +150,11 @@ hooks:
 	cp Tools/git-hooks/pre-commit .git/hooks/pre-commit
 	chmod +x .git/hooks/pre-commit Tools/git-hooks/pre-commit
 
+# The local backend (plan section 13): API on :47880, Reverb on :47881. Needs Server/api/.env,
+# made from .env.example with php artisan key:generate and the REVERB_APP_* values set.
 server-up:
-	@if [ ! -f Server/deploy/compose.yml ]; then \
-		echo "No Server/deploy/compose.yml yet. The backend arrives in Phase 3."; exit 0; \
-	fi; \
-	docker compose -f Server/deploy/compose.yml up -d
+	@test -f Server/api/.env || { echo "Create Server/api/.env from Server/api/.env.example first."; exit 1; }
+	docker compose -f Server/deploy/compose.yml up -d --build
+
+server-down:
+	docker compose -f Server/deploy/compose.yml down
