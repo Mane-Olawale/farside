@@ -228,10 +228,11 @@ final class HostController {
                 last = s
                 log.info("""
                 stats 5s: captured \(c.complete) complete, \(c.idle) idle; encoded \(Int(encoded)) \
-                (\(String(format: "%.1f", encoded / 5)) fps), sent \(String(format: "%.2f", bytes * 8 / 5 / 1e6)) Mbps, \
-                target \(String(format: "%.1f", (s.targetBitrate ?? 0) / 1e6)) Mbps, \
-                encode avg \(String(format: "%.1f", (s.totalEncodeTime ?? 0) / max(s.framesEncoded ?? 1, 1) * 1000)) ms, \
-                rtt \(String(format: "%.1f", (s.roundTripTime ?? 0) * 1000)) ms, \
+                (\(String(format: "%.1f", encoded / 5), privacy: .public) fps), \
+                sent \(String(format: "%.2f", bytes * 8 / 5 / 1e6), privacy: .public) Mbps, \
+                target \(String(format: "%.1f", (s.targetBitrate ?? 0) / 1e6), privacy: .public) Mbps, \
+                encode avg \(String(format: "%.1f", (s.totalEncodeTime ?? 0) / max(s.framesEncoded ?? 1, 1) * 1000), privacy: .public) ms, \
+                rtt \(String(format: "%.1f", (s.roundTripTime ?? 0) * 1000), privacy: .public) ms, \
                 \(Int(s.frameWidth ?? 0))x\(Int(s.frameHeight ?? 0)) \(s.codec ?? "?", privacy: .public), \
                 limit \(s.qualityLimitationReason ?? "?", privacy: .public)
                 """)
