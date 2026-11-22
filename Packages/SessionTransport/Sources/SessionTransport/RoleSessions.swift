@@ -219,10 +219,14 @@ public final class ClientSession: SessionBase, @unchecked Sendable {
         }))
     }
 
-    /// Sends input to the Mac (plan section 9). Dropped unless streaming. Call from any thread;
-    /// messages keep their order.
-    public func sendInput(_ body: Envelope.OneOf_Body) {
-        queue.async { [self] in sendWhileStreaming(body) }
+    /// Sends input to the Mac (plan section 9). Dropped unless streaming. Call from one thread to
+    /// keep messages in order. Returns the envelope sequence number the message carries, which the
+    /// Mac echoes in cursor reports (plan section 9, local cursor prediction).
+    @discardableResult
+    public func sendInput(_ body: Envelope.OneOf_Body) -> UInt32 {
+        let seq = nextSeq()
+        queue.async { [self] in sendWhileStreaming(body, seq: seq) }
+        return seq
     }
 
     override func received(_ body: Envelope.OneOf_Body, seq: UInt32) {

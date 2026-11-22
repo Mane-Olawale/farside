@@ -21,6 +21,7 @@ final class HostInputHandler: @unchecked Sendable {
     private var access: (granted: Bool, checked: ContinuousClock.Instant)?
     private let onAccessMissing: @Sendable () -> Void
     private let lastSeq = Atomic<UInt32>(0)
+    private let lastPosted = Mutex<Point2?>(nil)
 
     /// Reads the Mac's key repeat settings, so call on the main thread.
     @MainActor
@@ -37,6 +38,14 @@ final class HostInputHandler: @unchecked Sendable {
 
     /// The newest pointer move posted, for cursor reports (plan section 9).
     var lastPointerSequence: UInt32 { lastSeq.load(ordering: .relaxed) }
+
+    /// Where this session last put the pointer, in global points. Nil until the iPad moves it.
+    var lastPostedLocation: Point2? { lastPosted.withLock { $0 } }
+
+    func displayBounds(_ id: UInt32) -> Rect2? { displays.bounds(id) }
+
+    /// The display holding a global point, if any.
+    func display(containing point: Point2) -> (id: UInt32, bounds: Rect2)? { displays.display(containing: point) }
 
     func refreshDisplays() {
         displays.set(Self.currentDisplays())
@@ -72,6 +81,8 @@ final class HostInputHandler: @unchecked Sendable {
             let events = replayer.handle(event, at: now())
             injector?.post(events)
             if let seq = replayer.lastPointerSeq { lastSeq.store(seq, ordering: .relaxed) }
+            let location = replayer.lastLocation
+            lastPosted.withLock { $0 = location }
             reschedule()
         }
     }
@@ -163,4 +174,9 @@ final class DisplayTable: Sendable {
     private let table = Mutex<[UInt32: Rect2]>([:])
     func set(_ value: [UInt32: Rect2]) { table.withLock { $0 = value } }
     func bounds(_ id: UInt32) -> Rect2? { table.withLock { $0[id] } }
+    func display(containing point: Point2) -> (id: UInt32, bounds: Rect2)? {
+        table.withLock { table in
+            table.first { DisplayMapping(bounds: $0.value).contains(point) }.map { ($0.key, $0.value) }
+        }
+    }
 }

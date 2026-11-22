@@ -13,6 +13,7 @@
 		0C26E23539C9D92362AAE827 /* LoopbackApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4A577794B0A5A5DF0730A1 /* LoopbackApp.swift */; };
 		0E68CA05A95CE970D8F685BB /* MediaCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6C5E6E9B3CA560C7C43365A9 /* MediaCore */; };
 		0EC665B9F97F4B5026B731A4 /* CodeReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3968D6C4E5DDCE05E626A946 /* CodeReader.swift */; };
+		1814B8EC3A896F2A1933152B /* CursorModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1532C369ED4863404CA2FD0C /* CursorModel.swift */; };
 		1A3C64B397E9E4507ECC773A /* PatternView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98B06750574B57538F301F6 /* PatternView.swift */; };
 		1A56AD98DBAD13E4EE230CD4 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CCD62624AF6B5D7C0FF7E4E /* Carbon.framework */; };
 		1EF5F76201FA2E342535604B /* MediaCore in Frameworks */ = {isa = PBXBuildFile; productRef = EA9F23F2F12AE8DD52C38D63 /* MediaCore */; };
@@ -42,6 +43,7 @@
 		6F631857D8289CFC639894A4 /* DeviceListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D871B555B2BD9F543640702B /* DeviceListModel.swift */; };
 		70B914864F2D7B44A116DCF5 /* HostInput in Frameworks */ = {isa = PBXBuildFile; productRef = FDBC6306268CB71E07FD08FF /* HostInput */; };
 		74621C0CF0107C61973B47A7 /* SessionTransport in Frameworks */ = {isa = PBXBuildFile; productRef = BB68FD03CD0176775EC6347F /* SessionTransport */; };
+		79796748F13B1011482B3DC7 /* HostCursor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046187C2F03C7716E82336A1 /* HostCursor.swift */; };
 		7996C35595C632974D8E7EA0 /* Recorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792198A418C3513F25560AA9 /* Recorder.swift */; };
 		7DF64AB3986995A09B70194D /* LockProbeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9492B6E160FB1BC17B134570 /* LockProbeApp.swift */; };
 		7E92A3735862000B5D0BED2B /* LoopbackStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438BD9F2B4AECA90FBB10A53 /* LoopbackStats.swift */; };
@@ -89,12 +91,14 @@
 
 /* Begin PBXFileReference section */
 		03136313D352ABEA4B336614 /* ConnectionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionModel.swift; sourceTree = "<group>"; };
+		046187C2F03C7716E82336A1 /* HostCursor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostCursor.swift; sourceTree = "<group>"; };
 		05D98625E52E2E1441B06C66 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		09C3F58AE13FBF4A206FFE48 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
 		0D341F049742326D71509DC2 /* S3HostApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = S3HostApp.swift; sourceTree = "<group>"; };
 		0D84A029B5EEA6B570639994 /* TestPattern.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TestPattern.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F45D4C86B1580B9205A96C0 /* SecureStore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SecureStore; path = Packages/SecureStore; sourceTree = SOURCE_ROOT; };
 		0F471A109660D81F0E3DAF28 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		1532C369ED4863404CA2FD0C /* CursorModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorModel.swift; sourceTree = "<group>"; };
 		156ED8758A27FE94D7140E5B /* S3ViewerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = S3ViewerApp.swift; sourceTree = "<group>"; };
 		1EC3EB628E049AB5B0F550FC /* BackendClient */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BackendClient; path = Packages/BackendClient; sourceTree = SOURCE_ROOT; };
 		243B4BAB933AC114C841C747 /* HostCapture */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HostCapture; path = Packages/HostCapture; sourceTree = SOURCE_ROOT; };
@@ -321,6 +325,7 @@
 			isa = PBXGroup;
 			children = (
 				03136313D352ABEA4B336614 /* ConnectionModel.swift */,
+				1532C369ED4863404CA2FD0C /* CursorModel.swift */,
 				D871B555B2BD9F543640702B /* DeviceListModel.swift */,
 				A21D5F5E79F14EE223EA7ACC /* FarsideApp.swift */,
 				BD16B6752507F70D5A529064 /* SessionScreen.swift */,
@@ -407,6 +412,7 @@
 			children = (
 				9D0997DD3EDAE2468F015B13 /* HostApp.swift */,
 				C2D635D582A06B83727ED2DE /* HostController.swift */,
+				046187C2F03C7716E82336A1 /* HostCursor.swift */,
 				FDA929D4216BC300CADD388F /* HostIdentity.swift */,
 				9E9A9B14EB61649671098C3F /* HostInputHandler.swift */,
 				959B17A4BE9EF2D80D41DF9A /* HostMedia.swift */,
@@ -808,6 +814,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E9A46775198433B62D090EDB /* ConnectionModel.swift in Sources */,
+				1814B8EC3A896F2A1933152B /* CursorModel.swift in Sources */,
 				6F631857D8289CFC639894A4 /* DeviceListModel.swift in Sources */,
 				23863E09DADA8F4581AC7608 /* FarsideApp.swift in Sources */,
 				F83B7E00227A0C5913D25F76 /* SessionScreen.swift in Sources */,
@@ -820,6 +827,7 @@
 			files = (
 				671D889CA00755B2A63E31F6 /* HostApp.swift in Sources */,
 				49BFA16F1D4A762686266BF1 /* HostController.swift in Sources */,
+				79796748F13B1011482B3DC7 /* HostCursor.swift in Sources */,
 				6441C6517B83772A155F587D /* HostIdentity.swift in Sources */,
 				313D53444485007327DC3151 /* HostInputHandler.swift in Sources */,
 				ED32CEF3B8690FF70E052743 /* HostMedia.swift in Sources */,

@@ -163,12 +163,13 @@ func eventually(_ seconds: Double = 3, _ condition: () -> Bool) async -> Bool {
         let p = connect()
         #expect(await eventually { p.host.state == .streaming && p.client.state == .streaming })
         p.client.sendInput(.key(.with { $0.hidUsage = 0x0E; $0.down = true }))
-        p.client.sendInput(.pointerMove(.with { $0.displayID = 1; $0.x = 0.5; $0.y = 0.5 }))
+        let moveSeq = p.client.sendInput(.pointerMove(.with { $0.displayID = 1; $0.x = 0.5; $0.y = 0.5 }))
         p.client.sendInput(.key(.with { $0.hidUsage = 0x0E; $0.down = false }))
         #expect(await eventually { p.hostRecorder.inputBodies.count == 3 })
         let input = p.hostRecorder.input
         #expect(input.map(\.0.channel) == [.input, .pointer, .input])
         #expect(input[0].1 < input[1].1 && input[1].1 < input[2].1)
+        #expect(input[1].1 == moveSeq, "the host sees the number sendInput returned")
         p.host.sendCursor(.cursorPosition(.with { $0.x = 0.25; $0.lastInputSeq = input[1].1 }))
         #expect(await eventually { p.clientRecorder.cursorBodies.count == 1 })
     }

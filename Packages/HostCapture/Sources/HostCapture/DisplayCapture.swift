@@ -15,15 +15,19 @@ public struct CaptureSettings: Sendable {
     public var capturesAudio: Bool
     /// The plan keeps the host's own sounds out. Test rigs that play markers turn this off.
     public var excludesCurrentProcessAudio: Bool
+    /// Draw the cursor into the video. Off, because the iPad draws its own (plan section 10); on
+    /// only as the fallback when the cursor's shape cannot be read.
+    public var showsCursor: Bool
 
     public init(width: Int, height: Int, framesPerSecond: Int = 60, queueDepth: Int = 3,
-                capturesAudio: Bool = false, excludesCurrentProcessAudio: Bool = true) {
+                capturesAudio: Bool = false, excludesCurrentProcessAudio: Bool = true, showsCursor: Bool = false) {
         self.width = width
         self.height = height
         self.framesPerSecond = framesPerSecond
         self.queueDepth = queueDepth
         self.capturesAudio = capturesAudio
         self.excludesCurrentProcessAudio = excludesCurrentProcessAudio
+        self.showsCursor = showsCursor
     }
 }
 
@@ -123,7 +127,7 @@ public final class DisplayCapture: NSObject, SCStreamOutput, SCStreamDelegate, @
         config.colorSpaceName = CGColorSpace.sRGB
         config.colorMatrix = CGDisplayStream.yCbCrMatrix_ITU_R_709_2
         config.queueDepth = settings.queueDepth
-        config.showsCursor = false
+        config.showsCursor = settings.showsCursor
         config.scalesToFit = true
         config.preservesAspectRatio = true
         config.captureResolution = .best

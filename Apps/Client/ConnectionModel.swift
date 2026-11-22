@@ -6,6 +6,7 @@ import os
 import QuartzCore
 import SessionTransport
 import SessionTransportWebRTC
+import Synchronization
 import UIKit
 import WireProtocol
 
@@ -48,6 +49,8 @@ final class ConnectionModel: Identifiable {
     /// The video surface. Lives as long as this connection.
     @ObservationIgnored let surface = VideoSurfaceView()
     @ObservationIgnored private var presenter: VideoPresenter?
+    /// The Mac's cursor: shapes, the one in use, and its predicted position.
+    @ObservationIgnored private(set) var cursor: CursorModel?
     @ObservationIgnored private var session: ClientSession?
     @ObservationIgnored private var transport: WebRTCTransport?
     @ObservationIgnored private var link: ClientLink?
@@ -70,7 +73,10 @@ final class ConnectionModel: Identifiable {
         presenter.start()
         self.presenter = presenter
 
+        let cursor = CursorModel(presenter: presenter)
+        self.cursor = cursor
         let link = ClientLink(model: self)
+        link.cursor.withLock { $0 = cursor }
         let log = self.log
         let signaling = SignalingConnection.connect(to: host.endpoint)
         let session = ClientSession(signaling: signaling, local: Self.deviceInfo(), delegate: link,
@@ -119,6 +125,7 @@ final class ConnectionModel: Identifiable {
 
     func appliedChanged(_ applied: Farside_V1_StreamConfigApplied) {
         self.applied = applied
+        cursor?.setDisplay(applied.displayID)
     }
 
     func roundTrip(_ seconds: Double) {
@@ -267,6 +274,12 @@ private final class ClientLink: ClientSessionDelegate, @unchecked Sendable {
 
     func clientSessionRoundTrip(_ seconds: Double) {
         Task { @MainActor [weak model] in model?.roundTrip(seconds) }
+    }
+
+    /// Straight to the cursor model, off the main thread: shapes upload to the GPU here.
+    let cursor = Mutex<CursorModel?>(nil)
+    func clientSessionCursor(_ body: Envelope.OneOf_Body) {
+        cursor.withLock { $0 }?.handle(body)
     }
 }
 

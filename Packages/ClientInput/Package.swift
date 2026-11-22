@@ -16,5 +16,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "ClientInput", dependencies: ["InputModel", "WireProtocol"]),
+        .testTarget(name: "ClientInputTests", dependencies: ["ClientInput", "InputModel"]),
     ]
 )

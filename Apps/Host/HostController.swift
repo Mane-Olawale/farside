@@ -57,6 +57,9 @@ final class HostController {
     @ObservationIgnored private var session: HostSession?
     @ObservationIgnored private var transport: WebRTCTransport?
     @ObservationIgnored private var media: HostMedia?
+    @ObservationIgnored private var cursor: HostCursor?
+    /// Whether this Mac's cursor shape can be read; checked once at launch.
+    @ObservationIgnored private lazy var cursorShapesWork = HostCursor.shapesWork()
     @ObservationIgnored private var displayObserver: DisplayObserver?
     @ObservationIgnored private var activity: NSObjectProtocol?
     @ObservationIgnored private var statsTask: Task<Void, Never>?
@@ -204,6 +207,7 @@ final class HostController {
         })
         let media = HostMedia(
             input: input,
+            cursorInVideo: !cursorShapesWork,
             onState: { [weak self] state, client in
                 Task { @MainActor in self?.sessionChanged(state, client: client) }
             },
@@ -234,6 +238,12 @@ final class HostController {
             if state == .streaming, statsTask == nil {
                 startStatsLog()
                 refreshPeerToPeer()
+                refreshAccessibility()
+            }
+            if state == .streaming, cursor == nil, let session, let media {
+                let cursor = HostCursor(session: session, media: media)
+                cursor.start()
+                self.cursor = cursor
             }
             if activity == nil {
                 // Keeps App Nap away and the display awake while someone is watching (plan section 6).
@@ -243,6 +253,8 @@ final class HostController {
             }
         case .idle:
             endActivity()
+            cursor?.stop()
+            cursor = nil
             media?.use(nil)
             session = nil
             transport = nil
@@ -250,6 +262,8 @@ final class HostController {
             clientName = nil
         case .ended(let reason):
             endActivity()
+            cursor?.stop()
+            cursor = nil
             log.info("session ended: \(reason.rawValue, privacy: .public)")
         case .ringing, .negotiating:
             break
