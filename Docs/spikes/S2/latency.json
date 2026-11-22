@@ -1,0 +1,36 @@
+{
+  "cases" : [
+    {
+      "name" : "latency",
+      "observed" : {
+        "delivered" : "100 of 100",
+        "eventTimestampToAppMs" : "p50 8.05, p95 17.29, max 32.52",
+        "postToAppMs" : "p50 8.70, p95 17.32, max 32.55",
+        "postToEventTimestampMs" : "p50 0.06, p95 0.55, max 6.07"
+      },
+      "question" : "How long from posting a key on the main thread to the app receiving it?"
+    },
+    {
+      "name" : "latencyBackground",
+      "observed" : {
+        "delivered" : "100 of 100",
+        "eventTimestampToAppMs" : "p50 9.53, p95 16.96, max 17.54",
+        "postToAppMs" : "p50 9.66, p95 17.03, max 17.69",
+        "postToEventTimestampMs" : "p50 0.10, p95 1.83, max 2.58"
+      },
+      "question" : "Same, posting from a background queue while the main thread is idle"
+    }
+  ],
+  "date" : "2026-11-22T08:14:43Z",
+  "failed" : 0,
+  "focusLosses" : [
+
+  ],
+  "injectedEventsTagged" : "400 of 400 input events carried the source user data tag",
+  "keyboardLayout" : "U.S.",
+  "localEventsSuppressionInterval" : 0,
+  "macOS" : "Version 26.0.1 (Build 25A362)",
+  "model" : "Mac15,6",
+  "passed" : 0,
+  "recordedOnly" : 2
+}

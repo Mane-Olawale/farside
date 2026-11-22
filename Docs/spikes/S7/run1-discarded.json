@@ -1,0 +1,629 @@
+{
+  "date" : "2026-11-22T09:33:36Z",
+  "device" : "iPad16,5",
+  "keyboard" : "Generic Keyboard",
+  "keys" : [
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+
+      ],
+      "name" : "A",
+      "seconds" : 7.001408100128174,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 4
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+
+      ],
+      "name" : "Left arrow",
+      "seconds" : 7.001621961593628,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 80
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+
+      ],
+      "name" : "Escape",
+      "seconds" : 7.001482963562012,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 41
+    },
+    {
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+
+      ],
+      "name" : "Caps Lock",
+      "seconds" : 6.193681001663208,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "capsLock"
+      ],
+      "uikitUp" : true,
+      "usage" : 57
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "name" : "Command alone",
+      "seconds" : 4.375975966453552,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command",
+        "capsLock"
+      ],
+      "uikitUp" : true
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "option"
+      ],
+      "name" : "Option alone",
+      "seconds" : 3.3006190061569214,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "option",
+        "capsLock"
+      ],
+      "uikitUp" : true
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "control"
+      ],
+      "name" : "Control alone",
+      "seconds" : 4.640327095985413,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "control",
+        "capsLock"
+      ],
+      "uikitUp" : true
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "globe"
+      ],
+      "name" : "Globe alone",
+      "seconds" : 7.001097083091736,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false
+    },
+    {
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "name" : "Command-C",
+      "seconds" : 4.907341003417969,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command",
+        "capsLock"
+      ],
+      "uikitUp" : true,
+      "usage" : 6
+    },
+    {
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "name" : "Command-V",
+      "seconds" : 2.3084280490875244,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command",
+        "capsLock"
+      ],
+      "uikitUp" : true,
+      "usage" : 25
+    },
+    {
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "name" : "Command-Z",
+      "seconds" : 3.2749680280685425,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command",
+        "capsLock"
+      ],
+      "uikitUp" : true,
+      "usage" : 29
+    },
+    {
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "name" : "Command-W",
+      "seconds" : 2.5726109743118286,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command",
+        "capsLock"
+      ],
+      "uikitUp" : true,
+      "usage" : 26
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "command"
+      ],
+      "name" : "Command-Q",
+      "seconds" : 107.20941698551178,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 20
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "name" : "Command-. (period)",
+      "seconds" : 7.001145958900452,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 55
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "name" : "Command-` (backtick)",
+      "seconds" : 7.001492977142334,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 53
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "name" : "Command-Space",
+      "seconds" : 7.001037955284119,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 44
+    },
+    {
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "option"
+      ],
+      "name" : "Option-Space",
+      "seconds" : 3.623392939567566,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "option",
+        "capsLock"
+      ],
+      "uikitUp" : true,
+      "usage" : 44
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "control"
+      ],
+      "name" : "Control-Space",
+      "seconds" : 7.001720070838928,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 44
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "option"
+      ],
+      "name" : "Option-Tab",
+      "seconds" : 7.001686930656433,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 43
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "control"
+      ],
+      "name" : "Control-Up arrow",
+      "seconds" : 7.001611948013306,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 82
+    },
+    {
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "control"
+      ],
+      "name" : "Control-Left arrow",
+      "seconds" : 7.255895972251892,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command",
+        "capsLock"
+      ],
+      "uikitUp" : true,
+      "usage" : 80
+    },
+    {
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command",
+        "option"
+      ],
+      "name" : "Command-Option-Escape",
+      "seconds" : 3.693125009536743,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command",
+        "shift",
+        "capsLock"
+      ],
+      "uikitUp" : true,
+      "usage" : 41
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command",
+        "option"
+      ],
+      "name" : "Command-Option-D",
+      "seconds" : 7.001221060752869,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 7
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command",
+        "shift"
+      ],
+      "name" : "Command-Shift-3 (takes a screenshot)",
+      "seconds" : 7.001737952232361,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 32
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command",
+        "shift"
+      ],
+      "name" : "Command-Shift-4",
+      "seconds" : 7.001376986503601,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 33
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "globe"
+      ],
+      "name" : "Globe-C",
+      "seconds" : 7.001672029495239,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 6
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "globe"
+      ],
+      "name" : "Globe-A",
+      "seconds" : 7.00104296207428,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 4
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "command"
+      ],
+      "name" : "Command-Tab (come back to this app after)",
+      "seconds" : 7.001365065574646,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 43
+    },
+    {
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command",
+        "shift"
+      ],
+      "name" : "Command-Shift-H (come back after)",
+      "seconds" : 4.551210999488831,
+      "timedOut" : false,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command",
+        "shift",
+        "capsLock"
+      ],
+      "uikitUp" : true,
+      "usage" : 11
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "command"
+      ],
+      "name" : "Command-H (come back after)",
+      "seconds" : 7.001747965812683,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 11
+    },
+    {
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "globe"
+      ],
+      "name" : "Globe-H (come back after)",
+      "seconds" : 7.6123340129852295,
+      "timedOut" : true,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 11
+    }
+  ],
+  "mouse" : "GL-Magic keyboard",
+  "os" : "27.2.1",
+  "pointer" : [
+    {
+      "instruction" : "Move the pointer around the screen with the trackpad, without clicking.",
+      "name" : "hover",
+      "observed" : {
+        "continuousScrollStates" : "",
+        "continuousScrollTotal" : "0,0",
+        "discreteScrollStates" : "",
+        "gameControllerMouseDeltas" : "0",
+        "gameControllerMouseTotal" : "0,0",
+        "gameControllerScrollEvents" : "0",
+        "gameControllerScrollEventsAfterPanEnded" : "0",
+        "hoverEvents" : "0",
+        "pointerLocked" : "false",
+        "primaryClicks" : "0",
+        "secondaryClicks" : "0",
+        "touchTypes" : ""
+      }
+    },
+    {
+      "instruction" : "Click the trackpad three times.",
+      "name" : "primaryClick",
+      "observed" : {
+        "continuousScrollStates" : "",
+        "continuousScrollTotal" : "0,0",
+        "discreteScrollStates" : "",
+        "gameControllerMouseDeltas" : "0",
+        "gameControllerMouseTotal" : "0,0",
+        "gameControllerScrollEvents" : "0",
+        "gameControllerScrollEventsAfterPanEnded" : "0",
+        "hoverEvents" : "0",
+        "pointerLocked" : "false",
+        "primaryClicks" : "0",
+        "secondaryClicks" : "0",
+        "touchTypes" : ""
+      }
+    },
+    {
+      "instruction" : "Two-finger click (right click) three times.",
+      "name" : "secondaryClick",
+      "observed" : {
+        "continuousScrollStates" : "",
+        "continuousScrollTotal" : "0,0",
+        "discreteScrollStates" : "",
+        "gameControllerMouseDeltas" : "0",
+        "gameControllerMouseTotal" : "0,0",
+        "gameControllerScrollEvents" : "0",
+        "gameControllerScrollEventsAfterPanEnded" : "0",
+        "hoverEvents" : "0",
+        "pointerLocked" : "false",
+        "primaryClicks" : "0",
+        "secondaryClicks" : "0",
+        "touchTypes" : ""
+      }
+    },
+    {
+      "instruction" : "Two-finger scroll on the trackpad: flick quickly and lift, twice.",
+      "name" : "trackpadScroll",
+      "observed" : {
+        "continuousScrollStates" : "",
+        "continuousScrollTotal" : "0,0",
+        "discreteScrollStates" : "",
+        "gameControllerMouseDeltas" : "0",
+        "gameControllerMouseTotal" : "0,0",
+        "gameControllerScrollEvents" : "0",
+        "gameControllerScrollEventsAfterPanEnded" : "0",
+        "hoverEvents" : "0",
+        "pointerLocked" : "false",
+        "primaryClicks" : "0",
+        "secondaryClicks" : "0",
+        "touchTypes" : ""
+      }
+    },
+    {
+      "instruction" : "If a mouse with a wheel is connected, scroll its wheel. Otherwise wait.",
+      "name" : "mouseWheel",
+      "observed" : {
+        "continuousScrollStates" : "",
+        "continuousScrollTotal" : "0,0",
+        "discreteScrollStates" : "",
+        "gameControllerMouseDeltas" : "3",
+        "gameControllerMouseTotal" : "0,0",
+        "gameControllerScrollEvents" : "8",
+        "gameControllerScrollEventsAfterPanEnded" : "0",
+        "hoverEvents" : "9",
+        "pointerLocked" : "false",
+        "primaryClicks" : "0",
+        "secondaryClicks" : "0",
+        "touchTypes" : ""
+      }
+    },
+    {
+      "instruction" : "The app asks to lock the pointer. Move on the trackpad in circles.",
+      "name" : "pointerLock",
+      "observed" : {
+        "continuousScrollStates" : "",
+        "continuousScrollTotal" : "0,0",
+        "discreteScrollStates" : "",
+        "gameControllerMouseDeltas" : "16",
+        "gameControllerMouseTotal" : "0,0",
+        "gameControllerScrollEvents" : "0",
+        "gameControllerScrollEventsAfterPanEnded" : "0",
+        "hoverEvents" : "4",
+        "pointerLocked" : "true",
+        "primaryClicks" : "0",
+        "secondaryClicks" : "0",
+        "touchTypes" : ""
+      }
+    }
+  ]
+}

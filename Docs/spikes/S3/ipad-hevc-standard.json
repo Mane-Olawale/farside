@@ -1,0 +1,99 @@
+{
+  "codecPreferred" : "hevc",
+  "counts" : {
+
+  },
+  "date" : "2026-11-22T08:39:43Z",
+  "derived" : {
+    "averageDecodeMs" : 1.802811320754717,
+    "averageEncodeMs" : 9.923707957342083,
+    "averageJitterBufferMs" : 22.02054323899371,
+    "averageJitterBufferTargetMs" : 21.048610849056605
+  },
+  "events" : [
+    "signaling listener ready",
+    "signaling connection preparing",
+    "signaling connection ready",
+    "host ice 1",
+    "host connection 1",
+    "host connection 2",
+    "host ice 2",
+    "host channel control 1",
+    "host channel input 1",
+    "host channel pointer 1",
+    "host channel cursor 1"
+  ],
+  "latencyMs" : {
+    "echoDecoded" : {
+      "count" : 1200,
+      "max" : 60.48733333591372,
+      "mean" : 35.45377777758404,
+      "median" : 36.37487499509007,
+      "min" : 29.77300001657568,
+      "p95" : 39.45962499710731,
+      "p99" : 41.638624999905005
+    },
+    "echoPresented" : {
+      "count" : 1189,
+      "max" : 103.09116664575413,
+      "mean" : 75.87573790980136,
+      "median" : 75.68675000220537,
+      "min" : 66.59641666919924,
+      "p95" : 87.21912500914186,
+      "p99" : 92.12104164180346
+    }
+  },
+  "mode" : "serve",
+  "playout" : "standard",
+  "receiver" : {
+    "bytesReceived" : 5167299,
+    "codec" : "video\/H265",
+    "decoderImplementation" : "Farside VideoToolbox hevc",
+    "frameHeight" : 1152,
+    "frameWidth" : 2752,
+    "framesDecoded" : 1272,
+    "framesDropped" : 0,
+    "framesReceived" : 1274,
+    "freezeCount" : 0,
+    "jitterBufferDelay" : 28.010130999999998,
+    "jitterBufferEmittedCount" : 1272,
+    "jitterBufferMinimumDelay" : 26.773833,
+    "jitterBufferTargetDelay" : 26.773833,
+    "keyFramesDecoded" : 1,
+    "localCandidateType" : "host",
+    "nackCount" : 0,
+    "packetsLost" : 0,
+    "playoutExtensionInLocalSDP" : true,
+    "playoutExtensionInRemoteSDP" : true,
+    "playoutExtensionNegotiated" : true,
+    "pliCount" : 0,
+    "remoteCandidateType" : "host",
+    "roundTripTime" : 0.005,
+    "totalDecodeTime" : 2.293176
+  },
+  "recordedSeconds" : 20,
+  "sender" : {
+    "codec" : "video\/H265",
+    "encoderImplementation" : "Farside VideoToolbox hevc",
+    "framesEncoded" : 1219,
+    "localCandidateType" : "host",
+    "nackCount" : 0,
+    "playoutExtensionInLocalSDP" : true,
+    "playoutExtensionInRemoteSDP" : true,
+    "playoutExtensionNegotiated" : true,
+    "pliCount" : 0,
+    "qualityLimitationReason" : "none",
+    "remoteCandidateType" : "host",
+    "roundTripTime" : 0.008,
+    "targetBitrate" : 37326000,
+    "totalEncodeTime" : 12.097
+  },
+  "viewer" : {
+    "codeUnreadable" : 0,
+    "device" : "iPad16,5",
+    "displayHz" : 120,
+    "framesPresented" : 1256,
+    "framesRendered" : 1272,
+    "os" : "27.2.1"
+  }
+}

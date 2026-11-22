@@ -1,0 +1,403 @@
+name: Farside
+options:
+  deploymentTarget:
+    iOS: "26.0"
+    macOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+configs:
+  Debug: debug
+  Release: release
+configFiles:
+  Debug: Config/Shared.xcconfig
+  Release: Config/Shared.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.2"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+packages:
+  WireProtocol:
+    path: Packages/WireProtocol
+  InputModel:
+    path: Packages/InputModel
+  MediaCore:
+    path: Packages/MediaCore
+  Pairing:
+    path: Packages/Pairing
+  SecureStore:
+    path: Packages/SecureStore
+  BackendClient:
+    path: Packages/BackendClient
+  SessionTransport:
+    path: Packages/SessionTransport
+  Telemetry:
+    path: Packages/Telemetry
+  HostCapture:
+    path: Packages/HostCapture
+  HostInput:
+    path: Packages/HostInput
+  ClientVideo:
+    path: Packages/ClientVideo
+  ClientInput:
+    path: Packages/ClientInput
+targets:
+  Client:
+    type: application
+    platform: iOS
+    sources:
+      - path: Apps/Client
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: ClientVideo
+      - package: ClientInput
+      - package: SessionTransport
+      - package: BackendClient
+      - package: Pairing
+      - package: Telemetry
+    settings:
+      base:
+        PRODUCT_NAME: Farside
+        PRODUCT_BUNDLE_IDENTIFIER: $(FARSIDE_BUNDLE_PREFIX).client
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "2"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        ENABLE_PREVIEWS: YES
+    info:
+      path: Apps/Client/Info.plist
+      properties:
+        CFBundleDisplayName: Farside
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSLocalNetworkUsageDescription: Farside finds your Macs on this network and connects to them directly.
+        NSBonjourServices:
+          - _farside._tcp
+        NSCameraUsageDescription: Farside scans the pairing code shown on your Mac.
+        NSFaceIDUsageDescription: Farside uses Face ID to lock your list of Macs.
+        # ITSAppUsesNonExemptEncryption is set only after the export compliance check (plan section 18).
+  Host:
+    type: application
+    platform: macOS
+    sources:
+      - path: Apps/Host
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: HostCapture
+      - package: HostInput
+      - package: SessionTransport
+      - package: BackendClient
+      - package: Pairing
+      - package: Telemetry
+    settings:
+      base:
+        PRODUCT_NAME: Farside Host
+        PRODUCT_BUNDLE_IDENTIFIER: $(FARSIDE_BUNDLE_PREFIX).host
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_APP_SANDBOX: NO
+        COMBINE_HIDPI_IMAGES: YES
+    info:
+      path: Apps/Host/Info.plist
+      properties:
+        CFBundleDisplayName: Farside Host
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSUIElement: true
+        LSApplicationCategoryType: public.app-category.utilities
+        NSLocalNetworkUsageDescription: Farside Host lets your paired iPad find and connect to this Mac on the local network.
+        NSBonjourServices:
+          - _farside._tcp
+  # Latency rig: millisecond counter, moving bar and block-coded frame counter (plan section 17).
+  TestPattern:
+    type: application
+    platform: macOS
+    sources:
+      - path: Tools/TestPattern
+        excludes:
+          - Info.plist
+          - README.md
+    dependencies:
+      - package: Telemetry
+    settings:
+      base:
+        PRODUCT_NAME: TestPattern
+        PRODUCT_BUNDLE_IDENTIFIER: $(FARSIDE_BUNDLE_PREFIX).testpattern
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+    info:
+      path: Tools/TestPattern/Info.plist
+      properties:
+        CFBundleDisplayName: Farside Test Pattern
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+  # Spike S1: capture, encode, decode and render in one process, timed per stage.
+  Loopback:
+    type: application
+    platform: macOS
+    sources:
+      - path: Tools/Loopback
+      - path: Tools/TestPattern/PatternView.swift
+    dependencies:
+      - package: HostCapture
+      - package: ClientVideo
+      - package: MediaCore
+      - package: Telemetry
+    settings:
+      base:
+        PRODUCT_NAME: Loopback
+        PRODUCT_BUNDLE_IDENTIFIER: $(FARSIDE_BUNDLE_PREFIX).loopback
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+    info:
+      path: Tools/Loopback/Info.plist
+      properties:
+        CFBundleDisplayName: Farside Loopback
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+  # Spike S2: posts synthetic input into its own window and records what arrives.
+  InputProbe:
+    type: application
+    platform: macOS
+    sources:
+      - path: Tools/InputProbe
+    dependencies:
+      - package: HostInput
+      - package: Telemetry
+      - sdk: Carbon.framework
+    settings:
+      base:
+        PRODUCT_NAME: InputProbe
+        PRODUCT_BUNDLE_IDENTIFIER: $(FARSIDE_BUNDLE_PREFIX).inputprobe
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+    info:
+      path: Tools/InputProbe/Info.plist
+      properties:
+        CFBundleDisplayName: Farside Input Probe
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+  # Spike S3: WebRTC transport with our VideoToolbox codecs. Host captures and sends.
+  S3Host:
+    type: application
+    platform: macOS
+    sources:
+      - path: Tools/TransportProbe/Host
+      - path: Tools/TransportProbe/Shared
+      - path: Tools/TestPattern/PatternView.swift
+      - path: Tools/Loopback/MetalView.swift
+      - path: Tools/Loopback/CodeReader.swift
+    dependencies:
+      - package: HostCapture
+      - package: ClientVideo
+      - package: SessionTransport
+      - package: MediaCore
+      - package: Telemetry
+    settings:
+      base:
+        PRODUCT_NAME: S3Host
+        PRODUCT_BUNDLE_IDENTIFIER: $(FARSIDE_BUNDLE_PREFIX).s3host
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+    info:
+      path: Tools/TransportProbe/Host/Info.plist
+      properties:
+        CFBundleDisplayName: Farside S3 Host
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+        NSLocalNetworkUsageDescription: S3Host streams the test pattern to the Farside S3 viewer on your iPad.
+        NSBonjourServices:
+          - _farside._tcp
+  # Spike S3: the iPad side. Receives, renders and echoes frame codes.
+  S3Viewer:
+    type: application
+    platform: iOS
+    sources:
+      - path: Tools/TransportProbe/Viewer
+      - path: Tools/TransportProbe/Shared
+    dependencies:
+      - package: ClientVideo
+      - package: SessionTransport
+      - package: MediaCore
+      - package: Telemetry
+    settings:
+      base:
+        PRODUCT_NAME: S3Viewer
+        PRODUCT_BUNDLE_IDENTIFIER: $(FARSIDE_BUNDLE_PREFIX).s3viewer
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "2"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    info:
+      path: Tools/TransportProbe/Viewer/Info.plist
+      properties:
+        CFBundleDisplayName: Farside S3
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIStatusBarHidden: true
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSLocalNetworkUsageDescription: Farside S3 finds the Mac running S3Host on this network.
+        NSBonjourServices:
+          - _farside._tcp
+  # Spike S5: lock screen capture and typing.
+  LockProbe:
+    type: application
+    platform: macOS
+    sources:
+      - path: Tools/LockProbe
+    dependencies:
+      - package: HostCapture
+      - package: HostInput
+      - package: MediaCore
+    settings:
+      base:
+        PRODUCT_NAME: LockProbe
+        PRODUCT_BUNDLE_IDENTIFIER: $(FARSIDE_BUNDLE_PREFIX).lockprobe
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+    info:
+      path: Tools/LockProbe/Info.plist
+      properties:
+        CFBundleDisplayName: Farside Lock Probe
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+  # Spike S7: which keys and pointer events reach an iPad app.
+  InputLogger:
+    type: application
+    platform: iOS
+    sources:
+      - path: Tools/InputLogger
+    dependencies:
+      - sdk: GameController.framework
+    settings:
+      base:
+        PRODUCT_NAME: InputLogger
+        PRODUCT_BUNDLE_IDENTIFIER: $(FARSIDE_BUNDLE_PREFIX).inputlogger
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "2"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    info:
+      path: Tools/InputLogger/Info.plist
+      properties:
+        CFBundleDisplayName: Farside S7
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIStatusBarHidden: true
+        UIApplicationSupportsIndirectInputEvents: true
+        UIFileSharingEnabled: true
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+  # Spike S6: which permission APIs report status reliably, and when.
+  PermissionProbe:
+    type: application
+    platform: macOS
+    sources:
+      - path: Tools/PermissionProbe
+    settings:
+      base:
+        PRODUCT_NAME: PermissionProbe
+        PRODUCT_BUNDLE_IDENTIFIER: $(FARSIDE_BUNDLE_PREFIX).permprobe
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+    info:
+      path: Tools/PermissionProbe/Info.plist
+      properties:
+        CFBundleDisplayName: Farside Permission Probe
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+        NSLocalNetworkUsageDescription: The permission probe checks how Local Network access is reported.
+        NSBonjourServices:
+          - _farside._tcp
+schemes:
+  Client:
+    build:
+      targets:
+        Client: all
+    run:
+      config: Debug
+  Host:
+    build:
+      targets:
+        Host: all
+    run:
+      config: Debug
+  TestPattern:
+    build:
+      targets:
+        TestPattern: all
+    run:
+      config: Debug
+  Loopback:
+    build:
+      targets:
+        Loopback: all
+    run:
+      config: Release
+  InputProbe:
+    build:
+      targets:
+        InputProbe: all
+    run:
+      config: Release
+  S3Host:
+    build:
+      targets:
+        S3Host: all
+    run:
+      config: Release
+  S3Viewer:
+    build:
+      targets:
+        S3Viewer: all
+    run:
+      config: Release
+  LockProbe:
+    build:
+      targets:
+        LockProbe: all
+    run:
+      config: Release
+  InputLogger:
+    build:
+      targets:
+        InputLogger: all
+    run:
+      config: Release
+  PermissionProbe:
+    build:
+      targets:
+        PermissionProbe: all
+    run:
+      config: Release

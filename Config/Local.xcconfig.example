@@ -1,0 +1,5 @@
+// Copy to Local.xcconfig. That file is gitignored.
+// Debug builds of the host need a stable team and bundle identifier, or macOS drops the
+// screen recording and accessibility grants on every build (plan section 6).
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+FARSIDE_BUNDLE_PREFIX = app.farside

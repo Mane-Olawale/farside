@@ -1,0 +1,93 @@
+{"date":"2026-11-22T09:54:36Z","from":"","kind":"change","signal":"process","to":"launched pid 77399"}
+{"date":"2026-11-22T09:54:36Z","from":"","kind":"change","signal":"screen.preflight","to":"denied"}
+{"date":"2026-11-22T09:54:36Z","from":"","kind":"change","signal":"accessibility.axTrusted","to":"not trusted"}
+{"date":"2026-11-22T09:54:36Z","from":"","kind":"change","signal":"accessibility.preflightPost","to":"denied"}
+{"date":"2026-11-22T09:54:36Z","from":"","kind":"change","signal":"loginItem.status","to":"notFound"}
+{"date":"2026-11-22T09:54:36Z","from":"","kind":"change","signal":"notifications.authorization","to":"notDetermined"}
+{"date":"2026-11-22T09:54:36Z","from":"","kind":"change","signal":"localNetwork.browser","to":"ready"}
+{"date":"2026-11-22T09:54:36Z","from":"","kind":"change","signal":"screen.shareableContent","to":"error com.apple.ScreenCaptureKit.SCStreamErrorDomain -3801"}
+{"date":"2026-11-22T09:54:36Z","from":"","kind":"change","signal":"screen.realCapture","to":"failed"}
+{"date":"2026-11-22T09:55:28Z","from":"","kind":"change","signal":"process","to":"launched pid 77548"}
+{"date":"2026-11-22T09:55:29Z","from":"","kind":"change","signal":"screen.preflight","to":"granted"}
+{"date":"2026-11-22T09:55:29Z","from":"","kind":"change","signal":"accessibility.axTrusted","to":"not trusted"}
+{"date":"2026-11-22T09:55:29Z","from":"","kind":"change","signal":"accessibility.preflightPost","to":"denied"}
+{"date":"2026-11-22T09:55:29Z","from":"","kind":"change","signal":"loginItem.status","to":"notFound"}
+{"date":"2026-11-22T09:55:29Z","from":"","kind":"change","signal":"notifications.authorization","to":"notDetermined"}
+{"date":"2026-11-22T09:55:29Z","from":"","kind":"change","signal":"localNetwork.browser","to":"ready"}
+{"date":"2026-11-22T09:55:29Z","from":"","kind":"change","signal":"screen.shareableContent","to":"ok, 2 displays"}
+{"date":"2026-11-22T09:55:29Z","from":"","kind":"change","signal":"screen.realCapture","to":"image, mean 28"}
+{"date":"2026-11-22T09:55:34Z","from":"image, mean 28","kind":"change","signal":"screen.realCapture","to":"image, mean 29"}
+{"date":"2026-11-22T09:55:35Z","from":"","kind":"change","signal":"action","to":"CGRequestScreenCaptureAccess returned true"}
+{"date":"2026-11-22T09:55:37Z","from":"","kind":"change","signal":"action","to":"AXIsProcessTrustedWithOptions(prompt) returned false"}
+{"date":"2026-11-22T09:55:44Z","from":"image, mean 29","kind":"change","signal":"screen.realCapture","to":"image, mean 28"}
+{"date":"2026-11-22T09:55:48Z","from":"not trusted","kind":"change","signal":"accessibility.axTrusted","to":"trusted"}
+{"date":"2026-11-22T09:55:49Z","from":"","kind":"change","signal":"action","to":"AXIsProcessTrustedWithOptions(prompt) returned true"}
+{"date":"2026-11-22T09:55:55Z","from":"","kind":"change","signal":"action","to":"AXIsProcessTrustedWithOptions(prompt) returned true"}
+{"date":"2026-11-22T09:55:59Z","from":"image, mean 28","kind":"change","signal":"screen.realCapture","to":"image, mean 29"}
+{"date":"2026-11-22T09:56:04Z","from":"image, mean 29","kind":"change","signal":"screen.realCapture","to":"image, mean 27"}
+{"date":"2026-11-22T09:56:24Z","from":"image, mean 27","kind":"change","signal":"screen.realCapture","to":"image, mean 44"}
+{"date":"2026-11-22T09:56:27Z","from":"","kind":"change","signal":"action","to":"AXIsProcessTrustedWithOptions(prompt) returned true"}
+{"date":"2026-11-22T09:56:29Z","from":"image, mean 44","kind":"change","signal":"screen.realCapture","to":"image, mean 28"}
+{"date":"2026-11-22T09:56:29Z","from":"","kind":"change","signal":"action","to":"CGRequestPostEventAccess returned false"}
+{"date":"2026-11-22T09:56:31Z","from":"","kind":"change","signal":"action","to":"CGRequestPostEventAccess returned false"}
+{"date":"2026-11-22T09:56:32Z","from":"","kind":"change","signal":"action","to":"CGRequestPostEventAccess returned false"}
+{"date":"2026-11-22T09:56:34Z","from":"image, mean 28","kind":"change","signal":"screen.realCapture","to":"image, mean 31"}
+{"date":"2026-11-22T09:56:39Z","from":"image, mean 31","kind":"change","signal":"screen.realCapture","to":"image, mean 28"}
+{"date":"2026-11-22T09:56:40Z","from":"","kind":"change","signal":"action","to":"CGRequestPostEventAccess returned false"}
+{"date":"2026-11-22T09:56:42Z","from":"notDetermined","kind":"change","signal":"notifications.authorization","to":"denied"}
+{"date":"2026-11-22T09:56:45Z","from":"","kind":"change","signal":"action","to":"notification request granted false Error Domain=UNErrorDomain Code=1 \"Notifications are not allowed for this application\" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}"}
+{"date":"2026-11-22T09:56:49Z","from":"denied","kind":"change","signal":"notifications.authorization","to":"authorized"}
+{"date":"2026-11-22T09:56:49Z","from":"","kind":"change","signal":"action","to":"CGRequestPostEventAccess returned false"}
+{"date":"2026-11-22T09:56:53Z","from":"","kind":"change","signal":"action","to":"CGRequestPostEventAccess returned false"}
+{"date":"2026-11-22T09:56:57Z","from":"","kind":"change","signal":"action","to":"CGRequestPostEventAccess returned false"}
+{"date":"2026-11-22T09:57:00Z","from":"","kind":"change","signal":"action","to":"relaunch"}
+{"date":"2026-11-22T09:57:00Z","from":"","kind":"change","signal":"process","to":"launched pid 77836"}
+{"date":"2026-11-22T09:57:00Z","from":"","kind":"change","signal":"screen.preflight","to":"granted"}
+{"date":"2026-11-22T09:57:00Z","from":"","kind":"change","signal":"accessibility.axTrusted","to":"trusted"}
+{"date":"2026-11-22T09:57:00Z","from":"","kind":"change","signal":"accessibility.preflightPost","to":"granted"}
+{"date":"2026-11-22T09:57:00Z","from":"","kind":"change","signal":"loginItem.status","to":"notFound"}
+{"date":"2026-11-22T09:57:00Z","from":"","kind":"change","signal":"notifications.authorization","to":"authorized"}
+{"date":"2026-11-22T09:57:00Z","from":"","kind":"change","signal":"localNetwork.browser","to":"ready"}
+{"date":"2026-11-22T09:57:00Z","from":"","kind":"change","signal":"screen.shareableContent","to":"ok, 2 displays"}
+{"date":"2026-11-22T09:57:01Z","from":"","kind":"change","signal":"screen.realCapture","to":"image, mean 28"}
+{"date":"2026-11-22T09:57:02Z","from":"","kind":"change","signal":"action","to":"CGRequestPostEventAccess returned true"}
+{"date":"2026-11-22T09:57:04Z","from":"","kind":"change","signal":"action","to":"CGRequestPostEventAccess returned true"}
+{"date":"2026-11-22T09:57:06Z","from":"","kind":"change","signal":"action","to":"open Screen Recording pane (x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture) returned true"}
+{"date":"2026-11-22T09:57:11Z","from":"image, mean 28","kind":"change","signal":"screen.realCapture","to":"image, mean 29"}
+{"date":"2026-11-22T09:57:12Z","from":"","kind":"change","signal":"action","to":"open Screen Recording pane (x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture) returned true"}
+{"date":"2026-11-22T09:57:14Z","from":"","kind":"change","signal":"action","to":"open Accessibility pane (x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility) returned true"}
+{"date":"2026-11-22T09:57:18Z","from":"","kind":"change","signal":"action","to":"open Accessibility pane (x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility) returned true"}
+{"date":"2026-11-22T09:57:20Z","from":"","kind":"change","signal":"action","to":"open Accessibility pane (x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility) returned true"}
+{"date":"2026-11-22T09:57:23Z","from":"","kind":"change","signal":"action","to":"open Local Network pane (x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork) returned true"}
+{"date":"2026-11-22T09:57:26Z","from":"image, mean 29","kind":"change","signal":"screen.realCapture","to":"image, mean 28"}
+{"date":"2026-11-22T09:57:28Z","from":"","kind":"change","signal":"action","to":"open Local Network pane (x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork) returned true"}
+{"date":"2026-11-22T09:57:36Z","from":"","kind":"change","signal":"action","to":"open Login Items pane (x-apple.systempreferences:com.apple.LoginItems-Settings.extension) returned true"}
+{"date":"2026-11-22T09:57:41Z","from":"image, mean 28","kind":"change","signal":"screen.realCapture","to":"image, mean 29"}
+{"date":"2026-11-22T09:58:07Z","from":"","kind":"change","signal":"action","to":"open Local Network pane (x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork) returned true"}
+{"date":"2026-11-22T09:58:10Z","from":"","kind":"change","signal":"action","to":"open Login Items pane (x-apple.systempreferences:com.apple.LoginItems-Settings.extension) returned true"}
+{"date":"2026-11-22T09:58:18Z","from":"","kind":"change","signal":"action","to":"open Login Items pane (x-apple.systempreferences:com.apple.LoginItems-Settings.extension) returned true"}
+{"date":"2026-11-22T09:58:20Z","from":"image, mean 29","kind":"change","signal":"screen.realCapture","to":"image, mean 30"}
+{"date":"2026-11-22T09:58:23Z","from":"","kind":"change","signal":"action","to":"open Login Items pane (x-apple.systempreferences:com.apple.LoginItems-Settings.extension) returned true"}
+{"date":"2026-11-22T10:02:26Z","from":"","kind":"change","signal":"process","to":"launched pid 78870"}
+{"date":"2026-11-22T10:02:26Z","from":"","kind":"change","signal":"screen.preflight","to":"granted"}
+{"date":"2026-11-22T10:02:26Z","from":"","kind":"change","signal":"accessibility.axTrusted","to":"trusted"}
+{"date":"2026-11-22T10:02:26Z","from":"","kind":"change","signal":"accessibility.preflightPost","to":"granted"}
+{"date":"2026-11-22T10:02:26Z","from":"","kind":"change","signal":"loginItem.status","to":"notFound"}
+{"date":"2026-11-22T10:02:26Z","from":"","kind":"change","signal":"notifications.authorization","to":"authorized"}
+{"date":"2026-11-22T10:02:26Z","from":"","kind":"change","signal":"localNetwork.browser","to":"ready"}
+{"date":"2026-11-22T10:02:26Z","from":"","kind":"change","signal":"screen.shareableContent","to":"ok, 2 displays"}
+{"date":"2026-11-22T10:02:26Z","from":"","kind":"change","signal":"screen.realCapture","to":"image, mean 29"}
+{"date":"2026-11-22T10:02:32Z","from":"","kind":"change","signal":"action","to":"AXIsProcessTrustedWithOptions(prompt) returned true"}
+{"date":"2026-11-22T10:02:41Z","from":"image, mean 29","kind":"change","signal":"screen.realCapture","to":"image, mean 30"}
+{"date":"2026-11-22T10:02:51Z","from":"image, mean 30","kind":"change","signal":"screen.realCapture","to":"image, mean 29"}
+{"date":"2026-11-22T10:02:52Z","from":"trusted","kind":"change","signal":"accessibility.axTrusted","to":"not trusted"}
+{"date":"2026-11-22T10:02:56Z","from":"image, mean 29","kind":"change","signal":"screen.realCapture","to":"image, mean 30"}
+{"date":"2026-11-22T10:03:01Z","from":"image, mean 30","kind":"change","signal":"screen.realCapture","to":"image, mean 28"}
+{"date":"2026-11-22T10:03:26Z","from":"image, mean 28","kind":"change","signal":"screen.realCapture","to":"image, mean 54"}
+{"date":"2026-11-22T10:03:31Z","from":"image, mean 54","kind":"change","signal":"screen.realCapture","to":"image, mean 29"}
+{"date":"2026-11-22T10:03:32Z","from":"","kind":"change","signal":"action","to":"CGRequestScreenCaptureAccess returned true"}
+{"date":"2026-11-22T10:03:46Z","from":"image, mean 29","kind":"change","signal":"screen.realCapture","to":"image, mean 30"}
+{"date":"2026-11-22T10:03:51Z","from":"ok, 2 displays","kind":"change","signal":"screen.shareableContent","to":"error com.apple.ScreenCaptureKit.SCStreamErrorDomain -3801"}
+{"date":"2026-11-22T10:03:51Z","from":"image, mean 30","kind":"change","signal":"screen.realCapture","to":"failed"}
+{"accessibility.axTrusted":"not trusted","date":"2026-11-22T10:07:24Z","kind":"check","screen.preflight":"denied","screen.realCapture":"error com.apple.ScreenCaptureKit.SCStreamErrorDomain -3801"}
+{"accessibility.axTrusted":"trusted","date":"2026-11-22T10:16:35Z","kind":"check","screen.preflight":"granted","screen.realCapture":"image, mean 28"}

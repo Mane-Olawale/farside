@@ -1,0 +1,987 @@
+{
+  "date" : "2026-11-22T09:48:07Z",
+  "device" : "iPad16,5",
+  "keyboard" : "Generic Keyboard",
+  "keys" : [
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "GC 0x4 down",
+        "UIKit 0x4 down []",
+        "GC 0x4 up",
+        "UIKit 0x4 up []",
+        "UIKit 0x4 down []",
+        "GC 0x4 down",
+        "UIKit 0x4 up []",
+        "GC 0x4 up"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+
+      ],
+      "modifiersOnly" : false,
+      "name" : "A",
+      "seconds" : 16.988776922225952,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : true,
+      "usage" : 4
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "UIKit 0x50 down []",
+        "GC 0x50 down",
+        "GC 0x50 up",
+        "UIKit 0x50 up []"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+
+      ],
+      "modifiersOnly" : false,
+      "name" : "Left arrow",
+      "seconds" : 40.85232400894165,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : true,
+      "usage" : 80
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+
+      ],
+      "modifiersOnly" : false,
+      "name" : "Escape",
+      "seconds" : 2.167863965034485,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 41
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "UIKit 0x29 down []",
+        "GC 0x29 down",
+        "UIKit 0x29 up []",
+        "GC 0x29 up",
+        "UIKit 0x39 down []",
+        "GC 0x39 down",
+        "GC 0x39 up",
+        "UIKit 0x39 up []"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+
+      ],
+      "modifiersOnly" : false,
+      "name" : "Caps Lock",
+      "seconds" : 12.53181505203247,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : true,
+      "usage" : 57
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Command alone",
+      "seconds" : 0.8439580202102661,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "scene resigned active",
+        "UIKit 0xe2 down [option]",
+        "GC 0xe2 down",
+        "UIKit 0xe2 up [option]",
+        "GC 0xe2 up"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "option"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Option alone",
+      "seconds" : 4.819193959236145,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "option"
+      ],
+      "uikitUp" : true
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "control"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Control alone",
+      "seconds" : 0.7561929225921631,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "scene resigned active",
+        "scene resigned active",
+        "scene resigned active",
+        "scene resigned active",
+        "UIKit 0x29d down []",
+        "UIKit 0x29d up []",
+        "UIKit 0x29d down []",
+        "UIKit 0x29d up []",
+        "UIKit 0x29d down []",
+        "UIKit 0x29d up []",
+        "UIKit 0x29d down []",
+        "UIKit 0x29d up []",
+        "UIKit 0x29d down []",
+        "UIKit 0x29d up []",
+        "UIKit 0x29d down []",
+        "UIKit 0x29d up []",
+        "UIKit 0x29d down []",
+        "UIKit 0x29d up []",
+        "UIKit 0x29d down []",
+        "UIKit 0x29d up []",
+        "UIKit 0x29d down []",
+        "UIKit 0x29d up []",
+        "UIKit 0x29d down []",
+        "UIKit 0x29d up []"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "globe"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Globe alone",
+      "seconds" : 215.55395603179932,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "GC 0xe3 down",
+        "UIKit 0xe3 down [command]",
+        "UIKit 0x6 down [command]",
+        "GC 0x6 down",
+        "GC 0x6 up",
+        "UIKit 0x6 up [command]",
+        "UIKit 0xe3 up [command]",
+        "GC 0xe3 up"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Command-C",
+      "seconds" : 10.227226972579956,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command"
+      ],
+      "uikitUp" : true,
+      "usage" : 6
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "GC 0xe3 down",
+        "UIKit 0xe3 down [command]",
+        "GC 0x19 down",
+        "UIKit 0x19 down [command]",
+        "UIKit 0x19 up [command]",
+        "GC 0x19 up",
+        "GC 0xe3 up",
+        "UIKit 0xe3 up [command]"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Command-V",
+      "seconds" : 3.7644699811935425,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command"
+      ],
+      "uikitUp" : true,
+      "usage" : 25
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "GC 0xe3 down",
+        "UIKit 0xe3 down [command]",
+        "UIKit 0x1d down [command]",
+        "GC 0x1d down",
+        "GC 0x1d up",
+        "UIKit 0x1d up [command]",
+        "GC 0xe3 up",
+        "UIKit 0xe3 up [command]"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Command-Z",
+      "seconds" : 7.406617045402527,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command"
+      ],
+      "uikitUp" : true,
+      "usage" : 29
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "GC 0xe3 down",
+        "UIKit 0xe3 down [command]",
+        "UIKit 0x1a down [command]",
+        "GC 0x1a down",
+        "UIKit 0x1a up [command]",
+        "GC 0x1a up",
+        "UIKit 0xe3 up [command]",
+        "GC 0xe3 up"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Command-W",
+      "seconds" : 4.773055076599121,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command"
+      ],
+      "uikitUp" : true,
+      "usage" : 26
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "UIKit 0xe3 down [command]",
+        "GC 0xe3 down",
+        "scene resigned active",
+        "GC 0xe3 up"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "command"
+      ],
+      "modifiersOnly" : true,
+      "name" : "Command-Q",
+      "seconds" : 5.081518054008484,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 20
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "GC 0xe3 down",
+        "UIKit 0xe3 down [command]",
+        "UIKit 0x37 down []",
+        "GC 0x37 down",
+        "GC 0x37 up",
+        "UIKit 0x37 up []",
+        "GC 0xe3 up",
+        "UIKit 0xe3 up [command]"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Command-. (period)",
+      "seconds" : 3.5882259607315063,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : true,
+      "usage" : 55
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "UIKit 0xe3 down [command]",
+        "GC 0xe3 down",
+        "GC 0xe3 up",
+        "UIKit 0xe3 up [command]"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "modifiersOnly" : true,
+      "name" : "Command-` (backtick)",
+      "seconds" : 25.614874958992004,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 53
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "GC 0xe3 down",
+        "UIKit 0xe3 down [command]",
+        "UIKit 0xe3 up [command]",
+        "GC 0xe3 up"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command"
+      ],
+      "modifiersOnly" : true,
+      "name" : "Command-Space",
+      "seconds" : 7.013738989830017,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 44
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "GC 0xe2 down",
+        "UIKit 0xe2 down [option]",
+        "GC 0x2c down",
+        "UIKit 0x2c down [option]",
+        "UIKit 0x2c up [option]",
+        "GC 0x2c up",
+        "GC 0xe2 up",
+        "UIKit 0xe2 up [option]",
+        "GC 0xe2 down",
+        "UIKit 0xe2 down [option]",
+        "UIKit 0x2c down [option]",
+        "GC 0x2c down",
+        "GC 0x2c up",
+        "UIKit 0x2c up [option]",
+        "GC 0xe2 up",
+        "UIKit 0xe2 up [option]"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "option"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Option-Space",
+      "seconds" : 13.552083015441895,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "option"
+      ],
+      "uikitUp" : true,
+      "usage" : 44
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "GC 0xe0 down",
+        "UIKit 0xe0 down [control]",
+        "GC 0x2c down",
+        "UIKit 0x2c down [control]",
+        "GC 0x2c up",
+        "UIKit 0x2c up [control]",
+        "GC 0xe0 up",
+        "UIKit 0xe0 up [control]"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "control"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Control-Space",
+      "seconds" : 3.3478249311447144,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "control"
+      ],
+      "uikitUp" : true,
+      "usage" : 44
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "GC 0xe2 down",
+        "UIKit 0xe2 down [option]",
+        "GC 0x2b down",
+        "UIKit 0x2b down [option]",
+        "GC 0x2b up",
+        "UIKit 0x2b up [option]",
+        "GC 0xe2 up",
+        "UIKit 0xe2 up [option]"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "option"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Option-Tab",
+      "seconds" : 8.21470308303833,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "option"
+      ],
+      "uikitUp" : true,
+      "usage" : 43
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "GC 0xe0 down",
+        "UIKit 0xe0 down [control]",
+        "GC 0xe0 up",
+        "UIKit 0xe0 up [control]",
+        "UIKit 0xe3 down [command]",
+        "UIKit 0x52 down [command]",
+        "GC 0xe3 down",
+        "GC 0x52 down",
+        "GC 0xe0 down",
+        "GC 0xe3 up",
+        "GC 0x52 up",
+        "UIKit 0xe0 down [command,control]",
+        "UIKit 0xe3 up [command]",
+        "UIKit 0x52 up [command]",
+        "GC 0xe0 up",
+        "UIKit 0xe0 up [command,control]"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "control"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Control-Up arrow",
+      "seconds" : 5.605768918991089,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command"
+      ],
+      "uikitUp" : true,
+      "usage" : 82
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "GC 0xe0 down",
+        "UIKit 0xe0 down [control]",
+        "UIKit 0xe0 up [control]",
+        "GC 0xe0 up",
+        "GC 0xe3 down",
+        "GC 0x50 down",
+        "UIKit 0xe3 down [command]",
+        "UIKit 0x50 down [command]",
+        "GC 0xe0 down",
+        "GC 0xe3 up",
+        "GC 0x50 up",
+        "UIKit 0xe0 down [command,control]",
+        "UIKit 0xe3 up [command]",
+        "UIKit 0x50 up [command]",
+        "GC 0xe0 up",
+        "UIKit 0xe0 up [command,control]",
+        "UIKit 0xe0 down [control]",
+        "GC 0xe0 down",
+        "UIKit 0xe0 up [control]",
+        "GC 0xe0 up",
+        "GC 0xe3 down",
+        "GC 0x50 down",
+        "UIKit 0xe3 down [command]",
+        "UIKit 0x50 down [command]",
+        "GC 0xe0 down",
+        "GC 0xe3 up",
+        "GC 0x50 up",
+        "UIKit 0xe0 down [command,control]",
+        "UIKit 0xe3 up [command]",
+        "UIKit 0x50 up [command]",
+        "GC 0xe0 up",
+        "UIKit 0xe0 up [command,control]"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "control"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Control-Left arrow",
+      "seconds" : 8.39038598537445,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command"
+      ],
+      "uikitUp" : true,
+      "usage" : 80
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "GC 0xe3 down",
+        "UIKit 0xe3 down [command]",
+        "UIKit 0xe2 down [command,option]",
+        "GC 0xe2 down",
+        "GC 0x29 down",
+        "UIKit 0x29 down [command,option]",
+        "UIKit 0x29 up [command,option]",
+        "GC 0x29 up",
+        "GC 0xe3 up",
+        "UIKit 0xe3 up [command]",
+        "UIKit 0xe2 up [command,option]",
+        "GC 0xe2 up"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command",
+        "option"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Command-Option-Escape",
+      "seconds" : 11.863779067993164,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command",
+        "option"
+      ],
+      "uikitUp" : true,
+      "usage" : 41
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "GC 0xe3 down",
+        "UIKit 0xe3 down [command]",
+        "GC 0xe2 down",
+        "UIKit 0xe2 down [command,option]",
+        "UIKit 0xe3 up [command]",
+        "GC 0xe3 up",
+        "UIKit 0xe2 up [command,option]",
+        "GC 0xe2 up"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command",
+        "option"
+      ],
+      "modifiersOnly" : true,
+      "name" : "Command-Option-D",
+      "seconds" : 27.052556037902832,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 7
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "UIKit 0xe3 down [command]",
+        "GC 0xe3 down",
+        "UIKit 0xe1 down [command,shift]",
+        "GC 0xe1 down",
+        "UIKit 0xe1 up [command,shift]",
+        "UIKit 0xe3 up [command]",
+        "GC 0xe1 up",
+        "GC 0xe3 up"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command",
+        "shift"
+      ],
+      "modifiersOnly" : true,
+      "name" : "Command-Shift-3 (takes a screenshot)",
+      "seconds" : 11.564818978309631,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 32
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "GC 0xe3 down",
+        "UIKit 0xe3 down [command]",
+        "GC 0xe1 down",
+        "UIKit 0xe1 down [command,shift]",
+        "scene resigned active",
+        "UIKit 0xe3 up [command]",
+        "GC 0xe3 up",
+        "UIKit 0xe1 up [command,shift]",
+        "GC 0xe1 up"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "command",
+        "shift"
+      ],
+      "modifiersOnly" : true,
+      "name" : "Command-Shift-4",
+      "seconds" : 18.759297966957092,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 33
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "UIKit 0x29d down []",
+        "scene resigned active",
+        "UIKit 0x29d up []"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "globe"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Globe-C",
+      "seconds" : 7.06087601184845,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 6
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "UIKit 0x29d down []",
+        "UIKit 0x29d up []"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : false,
+      "modifiers" : [
+        "globe"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Globe-A",
+      "seconds" : 7.081284999847412,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 4
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "UIKit 0xe3 down [command]",
+        "GC 0xe3 down",
+        "GC 0xe3 up",
+        "UIKit 0xe3 up [command]",
+        "scene resigned active",
+        "scene resigned active"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "command"
+      ],
+      "modifiersOnly" : true,
+      "name" : "Command-Tab (come back to this app after)",
+      "seconds" : 8.548115015029907,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 43
+    },
+    {
+      "deliveredExactly" : true,
+      "events" : [
+        "GC 0xe3 down",
+        "UIKit 0xe3 down [command]",
+        "UIKit 0xe1 down [command,shift]",
+        "GC 0xe1 down",
+        "UIKit 0xb down [command,shift]",
+        "GC 0xb down",
+        "UIKit 0xb up [command,shift]",
+        "GC 0xb up",
+        "UIKit 0xe1 up [command,shift]",
+        "UIKit 0xe3 up [command]",
+        "GC 0xe1 up",
+        "GC 0xe3 up"
+      ],
+      "gameControllerDown" : true,
+      "leftForeground" : false,
+      "modifiers" : [
+        "command",
+        "shift"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Command-Shift-H (come back after)",
+      "seconds" : 17.03886902332306,
+      "uikitDown" : true,
+      "uikitModifiersSeen" : [
+        "command",
+        "shift"
+      ],
+      "uikitUp" : true,
+      "usage" : 11
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "GC 0xe3 down",
+        "UIKit 0xe3 down [command]",
+        "scene resigned active",
+        "GC 0xe3 up",
+        "UIKit 0xe3 down [command]",
+        "GC 0xe3 down",
+        "scene resigned active",
+        "GC 0xe3 up"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "command"
+      ],
+      "modifiersOnly" : true,
+      "name" : "Command-H (come back after)",
+      "seconds" : 11.900925040245056,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 11
+    },
+    {
+      "deliveredExactly" : false,
+      "events" : [
+        "UIKit 0x29d down []",
+        "scene resigned active",
+        "UIKit 0x29d up []",
+        "UIKit 0x29d down []",
+        "scene resigned active",
+        "UIKit 0x29d up []"
+      ],
+      "gameControllerDown" : false,
+      "leftForeground" : true,
+      "modifiers" : [
+        "globe"
+      ],
+      "modifiersOnly" : false,
+      "name" : "Globe-H (come back after)",
+      "seconds" : 9.230962991714478,
+      "uikitDown" : false,
+      "uikitModifiersSeen" : [
+
+      ],
+      "uikitUp" : false,
+      "usage" : 11
+    }
+  ],
+  "mouse" : "MX Master 3S",
+  "os" : "27.2.1",
+  "pointer" : [
+    {
+      "events" : [
+
+      ],
+      "instruction" : "Move the pointer around the screen with the trackpad or mouse, without clicking.",
+      "name" : "hover",
+      "observed" : {
+        "continuousScrollStates" : "",
+        "continuousScrollTotal" : "0,0",
+        "discreteScrollStates" : "",
+        "gameControllerMouseDeltas" : "1371",
+        "gameControllerMouseTotal" : "690,-302",
+        "gameControllerScrollEvents" : "0",
+        "gameControllerScrollEventsAfterPanEnded" : "0",
+        "hoverEvents" : "1370",
+        "pointerLocked" : "false",
+        "primaryClicks" : "0",
+        "secondaryClicks" : "0",
+        "touchTypes" : "direct"
+      }
+    },
+    {
+      "events" : [
+
+      ],
+      "instruction" : "Click with the trackpad or mouse three times.",
+      "name" : "primaryClick",
+      "observed" : {
+        "continuousScrollStates" : "",
+        "continuousScrollTotal" : "0,0",
+        "discreteScrollStates" : "",
+        "gameControllerMouseDeltas" : "341",
+        "gameControllerMouseTotal" : "-55,64",
+        "gameControllerScrollEvents" : "0",
+        "gameControllerScrollEventsAfterPanEnded" : "0",
+        "hoverEvents" : "344",
+        "pointerLocked" : "false",
+        "primaryClicks" : "3",
+        "secondaryClicks" : "0",
+        "touchTypes" : "direct,indirectPointer"
+      }
+    },
+    {
+      "events" : [
+
+      ],
+      "instruction" : "Right click (two-finger click on a trackpad) three times.",
+      "name" : "secondaryClick",
+      "observed" : {
+        "continuousScrollStates" : "",
+        "continuousScrollTotal" : "0,0",
+        "discreteScrollStates" : "",
+        "gameControllerMouseDeltas" : "285",
+        "gameControllerMouseTotal" : "-0,-197",
+        "gameControllerScrollEvents" : "0",
+        "gameControllerScrollEventsAfterPanEnded" : "0",
+        "hoverEvents" : "289",
+        "pointerLocked" : "false",
+        "primaryClicks" : "0",
+        "secondaryClicks" : "3",
+        "touchTypes" : "direct,indirectPointer"
+      }
+    },
+    {
+      "events" : [
+
+      ],
+      "instruction" : "Two-finger scroll on the trackpad: flick quickly and lift, twice. No trackpad: just tap.",
+      "name" : "trackpadScroll",
+      "observed" : {
+        "continuousScrollStates" : "began,changed,ended,began,changed,ended,began,changed,ended,began,changed,ended,began,changed,ended",
+        "continuousScrollTotal" : "2008,-589",
+        "discreteScrollStates" : "",
+        "gameControllerMouseDeltas" : "415",
+        "gameControllerMouseTotal" : "191,-194",
+        "gameControllerScrollEvents" : "264",
+        "gameControllerScrollEventsAfterPanEnded" : "30",
+        "hoverEvents" : "603",
+        "pointerLocked" : "false",
+        "primaryClicks" : "0",
+        "secondaryClicks" : "0",
+        "touchTypes" : "direct"
+      }
+    },
+    {
+      "events" : [
+
+      ],
+      "instruction" : "Scroll a mouse wheel if you have one. No mouse: just tap.",
+      "name" : "mouseWheel",
+      "observed" : {
+        "continuousScrollStates" : "",
+        "continuousScrollTotal" : "0,0",
+        "discreteScrollStates" : "began,changed,ended,began,changed,ended,began,changed,ended,began,ended,began,changed,ended",
+        "gameControllerMouseDeltas" : "20",
+        "gameControllerMouseTotal" : "5,-5",
+        "gameControllerScrollEvents" : "642",
+        "gameControllerScrollEventsAfterPanEnded" : "0",
+        "hoverEvents" : "667",
+        "pointerLocked" : "false",
+        "primaryClicks" : "0",
+        "secondaryClicks" : "0",
+        "touchTypes" : "direct"
+      }
+    },
+    {
+      "events" : [
+
+      ],
+      "instruction" : "The app asks to lock the pointer. Move the pointer in circles, then tap.",
+      "name" : "pointerLock",
+      "observed" : {
+        "continuousScrollStates" : "",
+        "continuousScrollTotal" : "0,0",
+        "discreteScrollStates" : "",
+        "gameControllerMouseDeltas" : "1021",
+        "gameControllerMouseTotal" : "-410,-88",
+        "gameControllerScrollEvents" : "0",
+        "gameControllerScrollEventsAfterPanEnded" : "0",
+        "hoverEvents" : "1019",
+        "pointerLocked" : "false",
+        "primaryClicks" : "0",
+        "secondaryClicks" : "0",
+        "touchTypes" : "direct"
+      }
+    }
+  ]
+}

@@ -1,0 +1,242 @@
+{
+  "date" : "2026-11-22T09:17:26Z",
+  "keyboardLayout" : "U.S.",
+  "lockedBy" : "Control-Command-Q",
+  "macOS" : "Version 26.0.1 (Build 25A362)",
+  "passwordProvided" : true,
+  "secondsToUnlock" : 1.2439630031585693,
+  "timeline" : [
+    {
+      "complete" : 31,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : false,
+      "other" : 0,
+      "t" : 92.91296088695526
+    },
+    {
+      "complete" : 31,
+      "event" : "frames",
+      "idle" : 1,
+      "locked" : false,
+      "other" : 0,
+      "t" : 93.91292893886566
+    },
+    {
+      "event" : "snapshot 01-before-lock",
+      "locked" : false,
+      "snapshot" : "01-before-lock.jpg",
+      "t" : 94.1714459657669
+    },
+    {
+      "event" : "posting Control-Command-Q",
+      "locked" : false,
+      "t" : 94.17184090614319
+    },
+    {
+      "event" : "locked",
+      "locked" : true,
+      "t" : 94.45339894294739
+    },
+    {
+      "complete" : 30,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : true,
+      "other" : 0,
+      "t" : 94.91281592845917
+    },
+    {
+      "complete" : 25,
+      "event" : "frames",
+      "idle" : 2,
+      "locked" : true,
+      "other" : 0,
+      "t" : 95.91282296180725
+    },
+    {
+      "complete" : 32,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : true,
+      "other" : 0,
+      "t" : 96.91278791427612
+    },
+    {
+      "event" : "snapshot 02-locked-3s",
+      "locked" : true,
+      "snapshot" : "02-locked-3s.jpg",
+      "t" : 97.5725998878479
+    },
+    {
+      "complete" : 32,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : true,
+      "other" : 0,
+      "t" : 97.9127629995346
+    },
+    {
+      "complete" : 33,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : true,
+      "other" : 0,
+      "t" : 98.91271495819092
+    },
+    {
+      "event" : "snapshot 03-after-wake",
+      "locked" : true,
+      "snapshot" : "03-after-wake.jpg",
+      "t" : 99.68700790405273
+    },
+    {
+      "event" : "typed abc by key code",
+      "locked" : true,
+      "t" : 99.73612999916077
+    },
+    {
+      "complete" : 32,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : true,
+      "other" : 0,
+      "t" : 99.912712931633
+    },
+    {
+      "complete" : 32,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : true,
+      "other" : 0,
+      "t" : 100.91263997554779
+    },
+    {
+      "event" : "snapshot 04-after-abc-keycodes",
+      "locked" : true,
+      "snapshot" : "04-after-abc-keycodes.jpg",
+      "t" : 101.35279595851898
+    },
+    {
+      "complete" : 33,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : true,
+      "other" : 0,
+      "t" : 101.91264593601227
+    },
+    {
+      "event" : "snapshot 05-after-delete",
+      "locked" : true,
+      "snapshot" : "05-after-delete.jpg",
+      "t" : 102.40096592903137
+    },
+    {
+      "event" : "typed xyz as Unicode text",
+      "locked" : true,
+      "t" : 102.40150094032288
+    },
+    {
+      "complete" : 32,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : true,
+      "other" : 0,
+      "t" : 102.9136049747467
+    },
+    {
+      "complete" : 33,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : true,
+      "other" : 0,
+      "t" : 103.91359090805054
+    },
+    {
+      "event" : "snapshot 06-after-xyz-unicode",
+      "locked" : true,
+      "snapshot" : "06-after-xyz-unicode.jpg",
+      "t" : 104.00420498847961
+    },
+    {
+      "complete" : 32,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : true,
+      "other" : 0,
+      "t" : 104.91356492042542
+    },
+    {
+      "event" : "snapshot 07-after-delete",
+      "locked" : true,
+      "snapshot" : "07-after-delete.jpg",
+      "t" : 105.09039390087128
+    },
+    {
+      "event" : "typed the password by key code (0 characters as text) and Return",
+      "locked" : true,
+      "t" : 105.26653289794922
+    },
+    {
+      "complete" : 29,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : false,
+      "other" : 0,
+      "t" : 105.91352999210358
+    },
+    {
+      "event" : "unlocked by injected password",
+      "locked" : false,
+      "t" : 106.33575189113617
+    },
+    {
+      "complete" : 18,
+      "event" : "frames",
+      "idle" : 1,
+      "locked" : false,
+      "other" : 0,
+      "t" : 106.91350388526917
+    },
+    {
+      "complete" : 31,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : false,
+      "other" : 0,
+      "t" : 107.91345393657684
+    },
+    {
+      "event" : "snapshot 09-unlocked",
+      "locked" : false,
+      "snapshot" : "09-unlocked.jpg",
+      "t" : 108.49110996723175
+    },
+    {
+      "complete" : 32,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : false,
+      "other" : 0,
+      "t" : 108.91344094276428
+    },
+    {
+      "complete" : 31,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : false,
+      "other" : 0,
+      "t" : 109.9132809638977
+    },
+    {
+      "complete" : 22,
+      "event" : "frames",
+      "idle" : 0,
+      "locked" : false,
+      "other" : 0,
+      "t" : 110.58725297451019
+    }
+  ],
+  "unlockedBy" : "injected password",
+  "unmappedPasswordCharacters" : 0
+}

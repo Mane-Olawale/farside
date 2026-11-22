@@ -1,0 +1,10 @@
+// Defaults. Local.xcconfig overrides the team and bundle prefix and is not committed.
+// Targets append .client, .host and .testpattern to the prefix.
+FARSIDE_BUNDLE_PREFIX = app.farside
+CODE_SIGN_STYLE = Automatic
+SWIFT_VERSION = 6.2
+SWIFT_STRICT_CONCURRENCY = complete
+IPHONEOS_DEPLOYMENT_TARGET = 26.0
+MACOSX_DEPLOYMENT_TARGET = 26.0
+
+#include? "Local.xcconfig"

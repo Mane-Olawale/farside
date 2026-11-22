@@ -1,0 +1,294 @@
+{
+  "cases" : [
+    {
+      "name" : "move",
+      "observed" : {
+        "movedEvents" : "5",
+        "worstErrorPoints" : "0.00"
+      },
+      "pass" : true,
+      "question" : "Does an absolute move land exactly, with no acceleration?"
+    },
+    {
+      "name" : "click",
+      "observed" : {
+        "clickCount" : "1",
+        "downs" : "1",
+        "ups" : "1"
+      },
+      "pass" : true,
+      "question" : "Does down then up arrive as one click?"
+    },
+    {
+      "name" : "doubleClick",
+      "observed" : {
+        "clickCounts" : "1,2",
+        "doubleClickInterval" : "0.50 s"
+      },
+      "pass" : true,
+      "question" : "Does click state 2 make AppKit report a double click?"
+    },
+    {
+      "name" : "tripleClick",
+      "observed" : {
+        "clickCounts" : "1,2,3",
+        "doubleClickInterval" : "0.50 s"
+      },
+      "pass" : true,
+      "question" : "Does click state 3 make a triple click?"
+    },
+    {
+      "name" : "rightClick",
+      "observed" : {
+        "rightDowns" : "1",
+        "rightUps" : "1"
+      },
+      "pass" : true,
+      "question" : "Do right button events arrive as right mouse events?"
+    },
+    {
+      "name" : "middleClick",
+      "observed" : {
+        "buttonNumber" : "2",
+        "otherDowns" : "1"
+      },
+      "pass" : true,
+      "question" : "Does the middle button arrive with button number 2?"
+    },
+    {
+      "name" : "drag",
+      "observed" : {
+        "draggedEvents" : "12 of 12 posted",
+        "endErrorPoints" : "0.00",
+        "movedEvents" : "0"
+      },
+      "pass" : true,
+      "question" : "Do dragged events posted with the button held arrive as a drag?"
+    },
+    {
+      "name" : "moveWhileHeld",
+      "observed" : {
+        "draggedEvents" : "0",
+        "movedEvents" : "6"
+      },
+      "pass" : true,
+      "question" : "If moved (not dragged) events are posted with the button held, do apps see a drag?"
+    },
+    {
+      "name" : "pointerDelta",
+      "observed" : {
+        "deltaX" : "7.0",
+        "deltaY" : "-4.0",
+        "locationUnchanged" : "true"
+      },
+      "pass" : true,
+      "question" : "Do delta fields on a moved event reach the app?"
+    },
+    {
+      "name" : "scrollLine",
+      "observed" : {
+        "eventsRecorded" : "2 (one over the surface, one over the scroll view)",
+        "precise" : "false",
+        "scrollViewMoved" : "-30.0 pt",
+        "scrollingDeltaY" : "-3.0"
+      },
+      "question" : "How does a line-unit wheel scroll arrive?"
+    },
+    {
+      "name" : "scrollPrecise",
+      "observed" : {
+        "directionInverted" : "false",
+        "events" : "18 of 18",
+        "momentumPhases" : "0,0,0,0,0,0,0,0,0,0,0,1,4,4,4,4,4,8",
+        "phases" : "1,4,4,4,4,4,4,4,4,4,8,0,0,0,0,0,0,0",
+        "precise" : "true",
+        "sumScrollingDeltaY" : "-124.0 (posted -124 px)"
+      },
+      "pass" : true,
+      "question" : "Do pixel scrolls keep their phases, momentum and precision?"
+    },
+    {
+      "name" : "scrollViewWithMomentum",
+      "observed" : {
+        "postedPx" : "-124",
+        "scrollViewMoved" : "-155.0 pt",
+        "settledWithin" : "0 ms after the last event"
+      },
+      "question" : "Does NSScrollView follow a posted gesture plus posted momentum?"
+    },
+    {
+      "name" : "scrollViewNoMomentum",
+      "observed" : {
+        "postedPx" : "-100",
+        "scrollViewMoved" : "-176.0 pt",
+        "settledWithin" : "300 ms after the last event"
+      },
+      "question" : "Does NSScrollView add its own momentum after a posted gesture ends?"
+    },
+    {
+      "name" : "modifiersExplicit",
+      "observed" : {
+        "charactersIgnoringModifiers" : "k",
+        "commandSetThenCleared" : "true",
+        "flagsChanged" : "2",
+        "keyDownHasCommand" : "true"
+      },
+      "pass" : true,
+      "question" : "Do modifier keys produce flags-changed, and do explicit flags reach the key event?"
+    },
+    {
+      "name" : "modifiersImplicit",
+      "observed" : {
+        "characters" : "K",
+        "flagsChanged" : "2",
+        "keyDownHasShift" : "true"
+      },
+      "pass" : true,
+      "question" : "Does a key posted with no flags inherit a held synthetic Shift?"
+    },
+    {
+      "name" : "everyModifier",
+      "observed" : {
+        "command" : "ok",
+        "control" : "ok",
+        "option" : "ok",
+        "rightCommand" : "ok",
+        "rightControl" : "ok",
+        "rightOption" : "ok",
+        "rightShift" : "ok",
+        "shift" : "ok"
+      },
+      "pass" : true,
+      "question" : "Does each modifier key, left and right, set and clear its flag?"
+    },
+    {
+      "name" : "capsLock",
+      "observed" : {
+        "afterFirstPress" : "false",
+        "afterSecondPress" : "false",
+        "appSawCapsLock" : "true",
+        "flagsChangedEvents" : "4",
+        "startLocked" : "false"
+      },
+      "pass" : false,
+      "question" : "Does a synthetic Caps Lock toggle the lock state?"
+    },
+    {
+      "name" : "keyRepeat",
+      "observed" : {
+        "hardwareWouldRepeat" : "about 12 times",
+        "heldFor" : "1.53 s",
+        "keyDowns" : "1",
+        "repeats" : "0",
+        "systemRepeatDelay" : "0.500 s",
+        "systemRepeatInterval" : "0.083 s"
+      },
+      "pass" : true,
+      "question" : "Does a held synthetic key auto-repeat?"
+    },
+    {
+      "name" : "textBasic",
+      "observed" : {
+        "keyDownEvents" : "1",
+        "received" : "Hello, world 123",
+        "scalarsIdentical" : "true",
+        "sent" : "Hello, world 123"
+      },
+      "pass" : true,
+      "question" : "Does ASCII text sent as Unicode strings arrive intact in a text view?"
+    },
+    {
+      "name" : "textUnicode",
+      "observed" : {
+        "keyDownEvents" : "2",
+        "received" : "café naïve – 日本語 👩‍👩‍👧 🇳🇬 é Ω",
+        "scalarsIdentical" : "true",
+        "sent" : "café naïve – 日本語 👩‍👩‍👧 🇳🇬 é Ω"
+      },
+      "pass" : true,
+      "question" : "Do accents, combining marks, CJK, emoji and flags arrive intact?"
+    },
+    {
+      "name" : "textLong",
+      "observed" : {
+        "arrivedWithin" : "40 ms",
+        "postTime" : "0.5 ms",
+        "receivedCharacters" : "500",
+        "sentCharacters" : "500"
+      },
+      "pass" : true,
+      "question" : "Does 500 characters of chunked text arrive intact?"
+    },
+    {
+      "name" : "unicodeLimit",
+      "observed" : {
+        "100 units" : "100 arrived",
+        "20 units" : "20 arrived",
+        "21 units" : "21 arrived",
+        "40 units" : "40 arrived"
+      },
+      "question" : "How many UTF-16 units does one keyboard event carry?"
+    },
+    {
+      "name" : "keyCodeTyping",
+      "observed" : {
+        "keyboardLayout" : "U.S.",
+        "received" : "hello world",
+        "sent" : "hello world"
+      },
+      "pass" : true,
+      "question" : "Does typing by virtual key code produce the expected text (the lock screen path)?"
+    },
+    {
+      "name" : "editingKeys",
+      "observed" : {
+        "received" : "ab\\n"
+      },
+      "pass" : true,
+      "question" : "Do Delete and Return as key codes edit text?"
+    },
+    {
+      "name" : "latency",
+      "observed" : {
+        "delivered" : "100 of 100",
+        "postToAppMs" : "p50 9.69, p95 15.93, p99 16.29, max 17.45"
+      },
+      "pass" : false,
+      "question" : "How long from posting a key to the app receiving it?"
+    },
+    {
+      "name" : "releaseAll",
+      "observed" : {
+        "keyUp" : "true",
+        "mouseUp" : "true",
+        "shiftCleared" : "true",
+        "systemSawHeldBefore" : "true",
+        "systemStateClearAfter" : "true"
+      },
+      "pass" : true,
+      "question" : "Does release-all clear held keys and buttons at the system level?"
+    },
+    {
+      "name" : "fnAlone",
+      "observed" : {
+        "flagsChangedWithFn" : "true",
+        "frontmostApp" : "Farside Input Probe",
+        "probeStillKey" : "true",
+        "systemGlobeSetting" : "unset"
+      },
+      "question" : "Does a synthetic fn (Globe) press on its own trigger the system Globe action?"
+    }
+  ],
+  "date" : "2026-11-22T08:13:38Z",
+  "failed" : 2,
+  "focusLosses" : [
+
+  ],
+  "injectedEventsTagged" : "404 of 404 input events carried the source user data tag",
+  "keyboardLayout" : "U.S.",
+  "localEventsSuppressionInterval" : 0,
+  "macOS" : "Version 26.0.1 (Build 25A362)",
+  "model" : "Mac15,6",
+  "passed" : 20,
+  "recordedOnly" : 5
+}

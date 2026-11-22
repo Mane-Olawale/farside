@@ -1,0 +1,22 @@
+#!/bin/sh
+# Blocks signing material, local signing config and env files.
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+if [ -z "$staged" ]; then
+  exit 0
+fi
+
+blocked=$(printf '%s\n' "$staged" | grep -E '(^|/)Local\.xcconfig$|(^|/)\.env(\..*)?$|\.(pem|key|p8|p12|pfx|mobileprovision|provisionprofile)$' || true)
+if [ -n "$blocked" ]; then
+  echo "Refusing to commit signing material or local config:"
+  printf '%s\n' "$blocked"
+  exit 1
+fi
+
+# The hook's own file contains these patterns, so it is left out of the scan.
+secrets=$(git diff --cached -U0 -- $staged ':(exclude)Tools/git-hooks/pre-commit' | grep -E '^\+.*(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|static-auth-secret=[^<])' || true)
+if [ -n "$secrets" ]; then
+  echo "Refusing to commit a private key or TURN shared secret."
+  exit 1
+fi
