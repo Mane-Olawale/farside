@@ -10,7 +10,7 @@ public enum Wire {
     /// A major mismatch ends the handshake with an update message on both devices.
     public static let major: UInt32 = 1
     /// Minor differences are handled through `Capabilities`.
-    public static let minor: UInt32 = 0
+    public static let minor: UInt32 = 1
     /// Largest single envelope. Bigger payloads are split into `Chunk` messages (Phase 6).
     public static let maxEnvelopeBytes = 64 * 1024
     /// Nesting limit while decoding. Our deepest message is three levels.
@@ -57,8 +57,15 @@ extension Farside_V1_Envelope.OneOf_Body {
     /// The channel this message must travel on.
     public var channel: Wire.Channel {
         switch self {
-        case .hello, .helloAck, .streamConfig, .streamConfigApplied, .displayList, .ping, .pong, .bye:
+        case .hello, .helloAck, .streamConfig, .streamConfigApplied, .displayList, .ping, .pong, .bye,
+             .cursorShape, .cursorState:
             .control
+        case .button, .scroll, .key, .text, .releaseAll:
+            .input
+        case .pointerMove, .pointerDelta, .inputHeartbeat:
+            .pointer
+        case .cursorPosition:
+            .cursor
         }
     }
 }

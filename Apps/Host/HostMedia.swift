@@ -21,11 +21,22 @@ final class HostMedia: HostSessionDelegate, @unchecked Sendable {
     private var capture: DisplayCapture?
     /// Bumped on every start and stop, so a start that finishes after a stop is undone.
     private var generation = 0
+    private var streamedDisplay: UInt32?
+    /// Set when the cursor's shape cannot be read: capture draws it instead (plan section 10).
+    let cursorInVideo: Bool
+
+    /// The display being streamed, for cursor reports.
+    var streamedDisplayID: UInt32? { lock.withLock { streamedDisplay } }
 
     private let onState: @Sendable (SessionState, DeviceInfo?) -> Void
     private let onProblem: @Sendable (Problem) -> Void
+    /// The iPad's input, replayed on this Mac.
+    let input: HostInputHandler
 
-    init(onState: @escaping @Sendable (SessionState, DeviceInfo?) -> Void, onProblem: @escaping @Sendable (Problem) -> Void) {
+    init(input: HostInputHandler, cursorInVideo: Bool, onState: @escaping @Sendable (SessionState, DeviceInfo?) -> Void,
+         onProblem: @escaping @Sendable (Problem) -> Void) {
+        self.input = input
+        self.cursorInVideo = cursorInVideo
         self.onState = onState
         self.onProblem = onProblem
     }
@@ -71,8 +82,10 @@ final class HostMedia: HostSessionDelegate, @unchecked Sendable {
     }
 
     func hostSessionStartMedia(_ applied: Farside_V1_StreamConfigApplied) {
-        let settings = CaptureSettings(width: Int(applied.width), height: Int(applied.height), framesPerSecond: Int(applied.frameRate))
+        let settings = CaptureSettings(width: Int(applied.width), height: Int(applied.height),
+                                       framesPerSecond: Int(applied.frameRate), showsCursor: cursorInVideo)
         let started = lock.withLock { () -> Int in
+            streamedDisplay = applied.displayID
             generation += 1
             restarts = []
             return generation
@@ -147,7 +160,21 @@ final class HostMedia: HostSessionDelegate, @unchecked Sendable {
     }
 
     func hostSessionStateChanged(_ state: SessionState, client: DeviceInfo?) {
+        switch state {
+        case .securing:
+            input.sessionStarted()
+        case .paused, .recovering:
+            input.releaseAll(reason: "\(state)")
+        case .ended:
+            input.sessionEnded()
+        case .idle, .ringing, .negotiating, .streaming:
+            break
+        }
         onState(state, client)
+    }
+
+    func hostSessionInput(_ body: Envelope.OneOf_Body, seq: UInt32) {
+        input.handle(body, seq: seq)
     }
 
     // MARK: Wire form

@@ -21,6 +21,8 @@ struct FarsideApp: App {
 /// The Devices screen (plan section 7): Macs found on this network.
 struct DevicesView: View {
     @Bindable var model: DeviceListModel
+    @State private var askingForAddress = false
+    @State private var address = UserDefaults.standard.string(forKey: "lastAddress") ?? ""
 
     var body: some View {
         NavigationStack {
@@ -39,6 +41,25 @@ struct DevicesView: View {
                 }
             }
             .navigationTitle("Macs")
+            .toolbar {
+                Button("Connect by Address…") { askingForAddress = true }
+            }
+            // Plan section 12: a typed host name or IP, for VPNs such as Tailscale.
+            .alert("Connect by Address", isPresented: $askingForAddress) {
+                TextField("Mac name or IP address", text: $address)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                Button("Connect") {
+                    guard let host = DiscoveredHost.address(address) else { return }
+                    UserDefaults.standard.set(address, forKey: "lastAddress")
+                    model.connect(to: host)
+                }
+                .disabled(DiscoveredHost.address(address) == nil)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Farside Host's menu shows its address. Add :port only if it shows one.")
+            }
         }
         .fullScreenCover(item: $model.connection) { connection in
             SessionScreen(connection: connection) { model.close() }

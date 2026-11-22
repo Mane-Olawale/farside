@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import HostCapture
+import HostInput
 import MediaCore
 import Observation
 import os
@@ -39,7 +40,12 @@ final class HostController {
     }
 
     private(set) var reachability: Reachability = .starting
+    /// The port the advertiser got, for the address shown in the menu.
+    private(set) var listenPort: UInt16?
     private(set) var screenRecording: ScreenRecordingStatus = .checking
+    /// Accessibility, which lets the host post the iPad's input (plan section 6). Unlike Screen
+    /// Recording, a grant applies to the running app.
+    private(set) var accessibility = EventInjector.hasPostAccess
     private(set) var localNetwork: LocalNetworkStatus = .unconfirmed
     private(set) var sessionState: SessionState = .idle
     private(set) var clientName: String?
@@ -53,6 +59,11 @@ final class HostController {
     @ObservationIgnored private var session: HostSession?
     @ObservationIgnored private var transport: WebRTCTransport?
     @ObservationIgnored private var media: HostMedia?
+    @ObservationIgnored private var cursor: HostCursor?
+    /// Whether the Mac's screen is locked (plan section 6, lock screen).
+    @ObservationIgnored private var screenLocked = HostController.isScreenLockedNow()
+    /// Whether this Mac's cursor shape can be read; checked once at launch.
+    @ObservationIgnored private lazy var cursorShapesWork = HostCursor.shapesWork()
     @ObservationIgnored private var displayObserver: DisplayObserver?
     @ObservationIgnored private var activity: NSObjectProtocol?
     @ObservationIgnored private var statsTask: Task<Void, Never>?
@@ -79,10 +90,30 @@ final class HostController {
             reachability = .notReachable("Could not listen: \(error.localizedDescription)")
         }
         displayObserver = DisplayObserver { [weak self] _ in
-            Task { @MainActor in self?.session?.sendDisplays() }
+            Task { @MainActor in
+                self?.media?.input.refreshDisplays()
+                self?.session?.sendDisplays()
+            }
         }
         Task { await refreshScreenRecording() }
         refreshPeerToPeer()
+        let center = DistributedNotificationCenter.default()
+        for (name, locked) in [("com.apple.screenIsLocked", true), ("com.apple.screenIsUnlocked", false)] {
+            center.addObserver(forName: Notification.Name(name), object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.screenLocked = locked
+                    self?.media?.input.setScreenLocked(locked)
+                }
+            }
+        }
+        // A grant made in System Settings applies at once; notice it without the menu opening.
+        Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3))
+                guard let self else { return }
+                if !self.accessibility { self.refreshAccessibility() }
+            }
+        }
     }
 
     /// Rereads the AirDrop and Universal Control settings. Cheap; called whenever the menu or
@@ -109,6 +140,19 @@ final class HostController {
         changed()
     }
 
+    func refreshAccessibility() {
+        let now = EventInjector.hasPostAccess
+        guard now != accessibility else { return }
+        accessibility = now
+        log.info("accessibility: \(now ? "granted" : "missing", privacy: .public)")
+        changed()
+    }
+
+    func requestAccessibility() {
+        EventInjector.requestPostAccess()
+        openSettings(.accessibility)
+    }
+
     func requestScreenRecording() {
         ScreenRecordingAccess.request()
         restartSuggested = true
@@ -118,6 +162,7 @@ final class HostController {
     enum SettingsPane: String {
         case screenRecording = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
         case localNetwork = "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork"
+        case accessibility = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
         case airDrop = "x-apple.systempreferences:com.apple.AirDrop-Handoff-Settings.extension"
         case displays = "x-apple.systempreferences:com.apple.Displays-Settings.extension"
     }
@@ -142,7 +187,9 @@ final class HostController {
     private func advertiserChanged(_ state: LANAdvertiser.State) {
         switch state {
         case .starting: reachability = .starting
-        case .ready: reachability = .reachable
+        case .ready(let port):
+            reachability = .reachable
+            listenPort = port
         case .waiting(let reason):
             reachability = .notReachable("Waiting for the network")
             localNetwork = .blocked(reason)
@@ -170,7 +217,14 @@ final class HostController {
             return
         }
 
+        let input = HostInputHandler(onAccessMissing: { [weak self] in
+            Task { @MainActor in self?.refreshAccessibility() }
+        })
+        screenLocked = Self.isScreenLockedNow()
+        input.setScreenLocked(screenLocked)
         let media = HostMedia(
+            input: input,
+            cursorInVideo: !cursorShapesWork,
             onState: { [weak self] state, client in
                 Task { @MainActor in self?.sessionChanged(state, client: client) }
             },
@@ -201,6 +255,12 @@ final class HostController {
             if state == .streaming, statsTask == nil {
                 startStatsLog()
                 refreshPeerToPeer()
+                refreshAccessibility()
+            }
+            if state == .streaming, cursor == nil, let session, let media {
+                let cursor = HostCursor(session: session, media: media)
+                cursor.start()
+                self.cursor = cursor
             }
             if activity == nil {
                 // Keeps App Nap away and the display awake while someone is watching (plan section 6).
@@ -210,6 +270,8 @@ final class HostController {
             }
         case .idle:
             endActivity()
+            cursor?.stop()
+            cursor = nil
             media?.use(nil)
             session = nil
             transport = nil
@@ -217,6 +279,8 @@ final class HostController {
             clientName = nil
         case .ended(let reason):
             endActivity()
+            cursor?.stop()
+            cursor = nil
             log.info("session ended: \(reason.rawValue, privacy: .public)")
         case .ringing, .negotiating:
             break
@@ -293,6 +357,7 @@ final class HostController {
         case .idle, .ended: break
         }
         if screenRecording == .missing || screenRecording == .revoked { return "Needs Screen Recording access" }
+        if !accessibility { return "Needs Accessibility access for input" }
         switch reachability {
         case .starting: return "Starting…"
         case .reachable: return "Reachable on this network"
@@ -301,7 +366,44 @@ final class HostController {
     }
 
     var needsAttention: Bool {
-        screenRecording == .missing || screenRecording == .revoked || { if case .blocked = localNetwork { true } else { false } }()
+        screenRecording == .missing || screenRecording == .revoked || !accessibility
+            || { if case .blocked = localNetwork { true } else { false } }()
+    }
+
+    /// What to type in the iPad's Connect by Address: this Mac's address on its main network, and
+    /// the port only when it is not the default.
+    var connectAddress: String? {
+        guard let ip = Self.primaryIPv4() else { return nil }
+        guard let port = listenPort, port != LAN.defaultPort else { return ip }
+        return "\(ip):\(port)"
+    }
+
+    /// The first IPv4 address on an active Wi-Fi or Ethernet interface (en0, en1, …).
+    static func primaryIPv4() -> String? {
+        var list: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&list) == 0, let first = list else { return nil }
+        defer { freeifaddrs(list) }
+        var candidates: [(name: String, ip: String)] = []
+        for pointer in sequence(first: first, next: { $0.pointee.ifa_next }) {
+            let entry = pointer.pointee
+            guard let address = entry.ifa_addr, address.pointee.sa_family == UInt8(AF_INET),
+                  entry.ifa_flags & UInt32(IFF_UP) != 0, entry.ifa_flags & UInt32(IFF_LOOPBACK) == 0
+            else { continue }
+            let name = String(cString: entry.ifa_name)
+            guard name.hasPrefix("en") || name.hasPrefix("utun") else { continue }
+            var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            guard getnameinfo(address, socklen_t(address.pointee.sa_len), &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST) == 0
+            else { continue }
+            candidates.append((name, String(cString: host)))
+        }
+        // The LAN first; a VPN tunnel (utun) after.
+        return (candidates.first { $0.name.hasPrefix("en") } ?? candidates.first)?.ip
+    }
+
+    /// The console session's lock state, for when the app starts with the Mac already locked.
+    static func isScreenLockedNow() -> Bool {
+        guard let session = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
+        return (session["CGSSessionScreenIsLocked"] as? Bool) ?? (session["CGSSessionScreenIsLocked"] as? Int).map { $0 != 0 } ?? false
     }
 
     private func changed() { onChange?() }

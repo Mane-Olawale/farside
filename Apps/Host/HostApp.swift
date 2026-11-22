@@ -32,7 +32,7 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             await controller.refreshScreenRecording()
             // The checklist opens whenever Screen Recording is not working right now, judged by
             // ScreenCaptureKit itself (spike S6), not only by the launch-time preflight.
-            if controller.screenRecording != .granted { showPermissions() }
+            if controller.screenRecording != .granted || !controller.accessibility { showPermissions() }
         }
     }
 
@@ -52,10 +52,17 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         controller.refreshPeerToPeer()
+        controller.refreshAccessibility()
         menu.removeAllItems()
         let status = NSMenuItem(title: controller.statusLine, action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
+        if let address = controller.connectAddress {
+            let item = NSMenuItem(title: "Address: \(address)", action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            item.toolTip = "Type this in Connect by Address on the iPad, for example over a VPN"
+            menu.addItem(item)
+        }
         menu.addItem(.separator())
         if controller.isInSession {
             menu.addItem(item("Disconnect", #selector(disconnect)))

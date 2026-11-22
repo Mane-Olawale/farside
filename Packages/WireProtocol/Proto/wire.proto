@@ -1,4 +1,7 @@
-// Farside wire protocol, version 1 (plan sections 10, 11 and 21 C).
+// Farside wire protocol, version 1.1 (plan sections 9, 10, 11 and 21 C).
+//
+// 1.0: handshake, stream config, displays, ping, bye.
+// 1.1: input (30s) and cursor (40s) messages, Phase 2.
 //
 // Every data channel message is exactly one Envelope. The channel keeps message boundaries,
 // so there is no length prefix.
@@ -28,6 +31,22 @@ message Envelope {
     Ping ping = 15;
     Pong pong = 16;
     Bye bye = 23;
+
+    // input, iPad to Mac (reliable `input` channel unless noted)
+    PointerMove pointer_move = 30;      // `pointer` channel
+    PointerDelta pointer_delta = 31;    // `pointer` channel
+    Button button = 32;
+    Scroll scroll = 33;
+    Key key = 34;
+    Text text = 35;
+    ReleaseAll release_all = 36;
+    // 37 is TabletSample, Phase 6.
+    InputHeartbeat input_heartbeat = 38;  // `pointer` channel
+
+    // cursor, Mac to iPad
+    CursorShape cursor_shape = 40;        // `control` channel
+    CursorState cursor_state = 41;        // `control` channel
+    CursorPosition cursor_position = 42;  // `cursor` channel
   }
 }
 
@@ -171,4 +190,122 @@ message Pong {
 message Bye {
   EndReason reason = 1;
   string detail = 2;  // Diagnostics only. Never shown raw.
+}
+
+// MARK: Input (plan section 9)
+//
+// Positions are normalized to 0...1 across the display's bounds, so pixels and Retina scale never
+// cross the wire. The Mac maps them to points in its global coordinate space.
+
+// Mouse buttons. In `PointerMove.buttons` each is the bit 1 << (button - 1).
+enum MouseButton {
+  MOUSE_BUTTON_UNSPECIFIED = 0;
+  MOUSE_BUTTON_LEFT = 1;
+  MOUSE_BUTTON_RIGHT = 2;
+  MOUSE_BUTTON_MIDDLE = 3;
+}
+
+// Pointer moved. Newest wins: the Mac drops one older than the newest it has posted, using the
+// envelope `seq`. Posted as a drag while a button is held.
+message PointerMove {
+  uint32 display_id = 1;
+  float x = 2;        // 0...1 across the display.
+  float y = 3;        // 0...1 down the display.
+  uint32 buttons = 4;  // Held buttons, bit set (see MouseButton).
+}
+
+// Relative movement, for pointer lock and trackpad mode.
+message PointerDelta {
+  float dx = 1;  // Points.
+  float dy = 2;
+}
+
+message Button {
+  MouseButton button = 1;
+  bool down = 2;
+  uint32 click_count = 3;  // 1 for a single click, 2 for the second click of a double click.
+  uint32 display_id = 4;
+  float x = 5;  // 0...1, where the click happens.
+  float y = 6;
+}
+
+// Gesture phases, as NSEvent.Phase uses them.
+enum ScrollPhase {
+  SCROLL_PHASE_NONE = 0;
+  SCROLL_PHASE_BEGAN = 1;
+  SCROLL_PHASE_CHANGED = 2;
+  SCROLL_PHASE_ENDED = 3;
+  SCROLL_PHASE_CANCELLED = 4;
+  SCROLL_PHASE_MAY_BEGIN = 5;
+}
+
+message Scroll {
+  float dx = 1;  // Points when continuous, lines when not.
+  float dy = 2;
+  ScrollPhase phase = 3;
+  ScrollPhase momentum_phase = 4;
+  bool continuous = 5;  // A trackpad gesture rather than a mouse wheel.
+}
+
+// Modifier bits for Key.modifiers. The low byte is the USB HID modifier byte, left and right kept
+// apart, so the Mac can compare it with the keys it has posted. Function and Caps Lock follow.
+// The iPad builds this set from the modifier keys it has seen go down (spike S7).
+enum Modifier {
+  MODIFIER_NONE = 0;
+  MODIFIER_LEFT_CONTROL = 0x01;
+  MODIFIER_LEFT_SHIFT = 0x02;
+  MODIFIER_LEFT_OPTION = 0x04;
+  MODIFIER_LEFT_COMMAND = 0x08;
+  MODIFIER_RIGHT_CONTROL = 0x10;
+  MODIFIER_RIGHT_SHIFT = 0x20;
+  MODIFIER_RIGHT_OPTION = 0x40;
+  MODIFIER_RIGHT_COMMAND = 0x80;
+  MODIFIER_FUNCTION = 0x100;
+  // The iPad's Caps Lock is on. The Mac applies it as Shift on letters and never posts Caps Lock
+  // (spike S2).
+  MODIFIER_CAPS_LOCK = 0x200;
+}
+
+message Key {
+  uint32 hid_usage = 1;  // USB HID keyboard usage, page 7.
+  bool down = 2;
+  uint32 modifiers = 3;  // Full set after this event, bit set (see Modifier).
+}
+
+// Committed text from the software keyboard, dictation or an input method.
+message Text {
+  string text = 1;
+}
+
+// Release every key and button the Mac holds for this session.
+message ReleaseAll {}
+
+// Sent while any key or button is held, so the Mac can stop repeats and release input when the
+// iPad goes quiet.
+message InputHeartbeat {}
+
+// MARK: Cursor (plan section 10)
+
+// A cursor image, sent once per distinct shape. Later messages refer to it by id.
+message CursorShape {
+  uint32 id = 1;
+  bytes png = 2;      // At `scale` pixels per point.
+  float width = 3;    // Points.
+  float height = 4;
+  float hot_x = 5;    // Points from the top left.
+  float hot_y = 6;
+  float scale = 7;
+}
+
+message CursorState {
+  uint32 shape_id = 1;
+  bool visible = 2;
+}
+
+// Where the cursor is, sent only when something other than this iPad moved it.
+message CursorPosition {
+  uint32 display_id = 1;
+  float x = 2;  // 0...1 across the display.
+  float y = 3;
+  uint32 last_input_seq = 4;  // Envelope seq of the newest PointerMove the Mac had posted.
 }

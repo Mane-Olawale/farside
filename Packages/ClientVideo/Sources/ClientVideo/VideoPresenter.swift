@@ -9,7 +9,8 @@ import Synchronization
 ///
 /// A `CAMetalDisplayLink` on a dedicated render thread asks for up to 120 Hz. At each refresh it
 /// hands over a drawable; the presenter draws the newest frame that arrived since the last
-/// refresh, or nothing if none did. It never waits for a drawable: when none is free the display
+/// refresh, or the last frame again if only the scene (viewport or cursor) changed, or nothing
+/// if neither did. The cursor therefore moves at display rate even when video is at 0 fps. It never waits for a drawable: when none is free the display
 /// link skips that refresh, and the newest frame is drawn at the next one. Frames that arrive
 /// faster than the display refreshes replace each other, so at most one ever waits.
 public final class VideoPresenter: NSObject, CAMetalDisplayLinkDelegate, @unchecked Sendable {
@@ -20,6 +21,8 @@ public final class VideoPresenter: NSObject, CAMetalDisplayLinkDelegate, @unchec
         public var replaced = 0
         /// Refreshes with no new frame to draw.
         public var idleRefreshes = 0
+        /// Refreshes that drew the previous frame again for a new viewport or cursor position.
+        public var redrawn = 0
         /// Refreshes the display link skipped, inferred from gaps between target times.
         public var skippedRefreshes = 0
         public init() {}
@@ -35,6 +38,9 @@ public final class VideoPresenter: NSObject, CAMetalDisplayLinkDelegate, @unchec
     private let renderer: MetalRenderer
     private let preferredRate: Float
     private let pending = Mutex<Pending?>(nil)
+    /// The frame on screen, kept to redraw when only the scene changes.
+    private let last = Mutex<PixelBufferBox?>(nil)
+    private let scene = Mutex<(value: RenderScene, dirty: Bool)>((RenderScene(), false))
     private let counters = Mutex(Counters())
     /// The previous refresh's target time, and the shortest gap seen so far, which is the
     /// display's real refresh interval (60 or 120 Hz, whatever was asked for).
@@ -55,6 +61,23 @@ public final class VideoPresenter: NSObject, CAMetalDisplayLinkDelegate, @unchec
     public func setDrawableSize(_ size: CGSize) {
         renderer.setDrawableSize(size)
     }
+
+    /// Where the video and cursor go from the next refresh on. Any thread; cheap when unchanged.
+    public func setScene(_ new: RenderScene) {
+        scene.withLock { s in
+            guard s.value != new else { return }
+            s.value = new
+            s.dirty = true
+        }
+    }
+
+    /// Uploads a cursor image for `CursorPlacement`s with this id. Any thread.
+    @discardableResult
+    public func setCursorImage(id: UInt32, image: CGImage) -> Bool {
+        renderer.setCursorImage(id: id, image: image)
+    }
+
+    public func hasCursorImage(id: UInt32) -> Bool { renderer.hasCursorImage(id: id) }
 
     /// Starts the display link on a new render thread. Does nothing if already running.
     public func start() {
@@ -95,6 +118,7 @@ public final class VideoPresenter: NSObject, CAMetalDisplayLinkDelegate, @unchec
         self.runLoop = nil
         thread = nil
         pending.withLock { $0 = nil }
+        last.withLock { $0 = nil }
     }
 
     /// Offers a decoded frame from any thread. It is drawn at the next refresh unless a newer
@@ -129,21 +153,32 @@ public final class VideoPresenter: NSObject, CAMetalDisplayLinkDelegate, @unchec
         }
         if missed > 0 { counters.withLock { $0.skippedRefreshes += missed } }
 
-        guard let item = pending.withLock({ slot -> Pending? in
+        let item = pending.withLock { slot -> Pending? in
             defer { slot = nil }
             return slot
-        }) else {
+        }
+        let (current, dirty) = scene.withLock { s -> (RenderScene, Bool) in
+            defer { s.dirty = false }
+            return (s.value, s.dirty)
+        }
+        if let item {
+            let tag = item.tag
+            let callback = item.presented
+            let drawn = renderer.encode(item.pixels.buffer, scene: current, into: update.drawable, acquiredTicks: HostClock.now()) { times in
+                callback?(tag, times)
+            }
+            last.withLock { $0 = item.pixels }
+            if drawn {
+                counters.withLock { $0.presented += 1 }
+                FrameTimeline.shared.mark(.presented, at: HostClock.ticks(seconds: target))
+            }
+        } else if dirty, let previous = last.withLock({ $0 }) {
+            // Only the viewport or the cursor moved: draw the same frame again.
+            if renderer.encode(previous.buffer, scene: current, into: update.drawable, acquiredTicks: HostClock.now(), presented: { _ in }) {
+                counters.withLock { $0.redrawn += 1 }
+            }
+        } else {
             counters.withLock { $0.idleRefreshes += 1 }
-            return
-        }
-        let tag = item.tag
-        let callback = item.presented
-        let drawn = renderer.encode(item.pixels.buffer, into: update.drawable, acquiredTicks: HostClock.now()) { times in
-            callback?(tag, times)
-        }
-        if drawn {
-            counters.withLock { $0.presented += 1 }
-            FrameTimeline.shared.mark(.presented, at: HostClock.ticks(seconds: target))
         }
     }
 }

@@ -9,6 +9,25 @@ import WireProtocol
 public enum LAN {
     public static let serviceType = "_farside._tcp"
 
+    /// The port the host listens on when it can, so Connect by address needs only the host.
+    public static let defaultPort: UInt16 = 47870
+
+    /// A WebSocket endpoint for a typed host. The handshake needs a `ws://` URL endpoint; a bare
+    /// host-and-port endpoint is aborted by the WebSocket protocol before it is ready.
+    static func endpoint(host: String, port: UInt16) -> NWEndpoint? {
+        var components = URLComponents()
+        components.scheme = "ws"
+        if host.contains(":") {
+            // An IPv6 address goes in brackets, with any zone (fe80::1%en0) escaped.
+            components.percentEncodedHost = "[" + host.replacingOccurrences(of: "%", with: "%25") + "]"
+        } else {
+            components.host = host
+        }
+        components.port = Int(port)
+        components.path = "/"
+        return components.url.map { .url($0) }
+    }
+
     static func parameters() -> NWParameters {
         let parameters = NWParameters.tcp
         let ws = NWProtocolWebSocket.Options()
@@ -42,6 +61,34 @@ public struct DiscoveredHost: Identifiable, Hashable, Sendable {
         self.name = name
         self.protocolMajor = protocolMajor
         self.endpoint = endpoint
+    }
+
+    /// A Mac reached by a typed address (plan section 12: Connect by address, for VPNs such as
+    /// Tailscale before the backend exists). Accepts `host`, `host:port`, an IPv4 or IPv6 address,
+    /// and `[v6]:port`. The port defaults to `LAN.defaultPort`. Nil if the text is not an address.
+    public static func address(_ text: String) -> DiscoveredHost? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains(" "), !trimmed.contains("/") else { return nil }
+        var host = trimmed
+        var port = LAN.defaultPort
+        if trimmed.hasPrefix("[") {
+            // [v6] or [v6]:port
+            guard let close = trimmed.firstIndex(of: "]") else { return nil }
+            host = String(trimmed[trimmed.index(after: trimmed.startIndex)..<close])
+            let rest = trimmed[trimmed.index(after: close)...]
+            if rest.hasPrefix(":") {
+                guard let p = UInt16(rest.dropFirst()), p > 0 else { return nil }
+                port = p
+            } else if !rest.isEmpty {
+                return nil
+            }
+        } else if trimmed.filter({ $0 == ":" }).count == 1, let colon = trimmed.lastIndex(of: ":") {
+            host = String(trimmed[..<colon])
+            guard let p = UInt16(trimmed[trimmed.index(after: colon)...]), p > 0 else { return nil }
+            port = p
+        }
+        guard !host.isEmpty, let endpoint = LAN.endpoint(host: host, port: port) else { return nil }
+        return DiscoveredHost(id: "address:\(host):\(port)", name: host, protocolMajor: Wire.major, endpoint: endpoint)
     }
 
     init?(_ result: NWBrowser.Result) {
@@ -85,19 +132,32 @@ public final class LANAdvertiser: @unchecked Sendable {
         self.onState = onState
     }
 
+    /// Listens on `LAN.defaultPort`, so a typed address needs no port, or on any free port if
+    /// that one is taken. Bonjour advertises whichever it got.
     public func start() throws {
-        let listener = try NWListener(using: LAN.parameters())
+        try start(port: NWEndpoint.Port(rawValue: LAN.defaultPort))
+    }
+
+    private func start(port: NWEndpoint.Port?) throws {
+        let listener = try port.map { try NWListener(using: LAN.parameters(), on: $0) } ?? NWListener(using: LAN.parameters())
         var txt = NWTXTRecord()
         txt[LAN.TXTKey.id] = id
         txt[LAN.TXTKey.name] = name
         txt[LAN.TXTKey.protocolMajor] = String(Wire.major)
         listener.service = NWListener.Service(name: name, type: LAN.serviceType, txtRecord: txt)
         let onState = self.onState
-        listener.stateUpdateHandler = { [weak listener] state in
+        let fixed = port != nil
+        listener.stateUpdateHandler = { [weak self, weak listener] state in
             switch state {
             case .setup: onState(.starting)
             case .ready: onState(.ready(port: listener?.port?.rawValue ?? 0))
             case .waiting(let error): onState(.waiting("\(error)"))
+            case .failed(.posix(.EADDRINUSE)) where fixed:
+                // Something else has the default port: take any free one instead.
+                listener?.cancel()
+                if let advertiser = self {
+                    advertiser.queue.async { try? advertiser.start(port: nil) }
+                }
             case .failed(let error): onState(.failed("\(error)"))
             case .cancelled: onState(.stopped)
             @unknown default: break
@@ -204,12 +264,7 @@ public final class SignalingConnection: @unchecked Sendable {
     /// handshake needs a `ws://` URL endpoint here; a bare host-and-port endpoint is aborted by
     /// the WebSocket protocol before it is ready. Bonjour service endpoints work as they are.
     public static func connect(host: String, port: UInt16) -> SignalingConnection {
-        var components = URLComponents()
-        components.scheme = "ws"
-        components.host = host
-        components.port = Int(port)
-        components.path = "/"
-        let endpoint: NWEndpoint = components.url.map { .url($0) }
+        let endpoint = LAN.endpoint(host: host, port: port)
             ?? .hostPort(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port) ?? .any)
         return connect(to: endpoint)
     }

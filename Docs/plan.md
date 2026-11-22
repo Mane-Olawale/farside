@@ -776,7 +776,7 @@ The whole screen behaves like a laptop trackpad.
 | Device | Capture on iPad | Behavior |
 | --- | --- | --- |
 | Magic Keyboard trackpad or mouse | Hover recognizer for position, button mask for primary and secondary click | Absolute pointer. The iPadOS pointer is hidden over the video |
-| Trackpad scroll | Pan recognizer accepting continuous scroll, plus the GameController scroll stream | Gesture deltas and phases pass through. UIKit's pan ends at finger lift with no momentum phase, so momentum comes either from GameController's scroll stream, which keeps reporting after the lift (spike S7), or is synthesized from the release velocity. Phase 2 picks one |
+| Trackpad scroll | Pan recognizer accepting continuous scroll, plus the GameController scroll stream | Gesture deltas and phases pass through. UIKit's pan ends at finger lift with no momentum phase, so the iPad synthesizes momentum from the release velocity and sends it with momentum phases, using the same model as two-finger touch scrolling. Decided in Phase 2: GameController's scroll stream keeps reporting after the lift (spike S7) but carries no phases and its units would need calibrating against UIKit's |
 | Mouse wheel | Pan recognizer accepting discrete scroll | Sent as line-based scroll |
 | Pointer lock | `prefersPointerLocked` with `GCMouse` deltas | Relative movement for apps that grab the mouse. Full screen only |
 | Apple Pencil | Touches of type pencil, plus hover on supported iPads | Tap clicks, drag presses the left button at once, hover moves the pointer |
@@ -809,6 +809,7 @@ macOS does not auto-repeat synthetic key events, so the host generates repeats i
 - The host starts a timer on key down, using the Mac's own repeat delay and interval settings.
 - Repeats stop on key up, on release-all, or when no heartbeat has arrived from the iPad for 300 ms.
 - The heartbeat rule prevents a runaway repeat when the network stalls with a key held.
+- A stall only pauses the repeat: if the key is still held when the iPad is heard again, repeats carry on at the repeat interval.
 
 Phase 0 spike S2 confirms the no-repeat behavior before this is built.
 

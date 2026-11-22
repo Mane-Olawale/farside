@@ -130,3 +130,30 @@ final class Locked<Value>: @unchecked Sendable {
     func set(_ newValue: Value) { lock.withLock { value = newValue } }
     func mutate(_ change: (inout Value) -> Void) { lock.withLock { change(&value) } }
 }
+
+@Suite struct ConnectByAddressTests {
+    func url(_ host: DiscoveredHost?) -> String? {
+        guard case .url(let url) = host?.endpoint else { return nil }
+        return url.absoluteString
+    }
+
+    @Test func hostAloneUsesTheDefaultPort() {
+        #expect(url(.address("mac.tailnet.ts.net")) == "ws://mac.tailnet.ts.net:\(LAN.defaultPort)/")
+        #expect(url(.address(" 100.64.0.7 ")) == "ws://100.64.0.7:\(LAN.defaultPort)/")
+    }
+
+    @Test func explicitPort() {
+        #expect(url(.address("192.168.1.20:5000")) == "ws://192.168.1.20:5000/")
+    }
+
+    @Test func ipv6() {
+        #expect(url(.address("fd7a:115c:a1e0::1")) == "ws://[fd7a:115c:a1e0::1]:\(LAN.defaultPort)/")
+        #expect(url(.address("[fd7a:115c:a1e0::1]:6000")) == "ws://[fd7a:115c:a1e0::1]:6000/")
+        #expect(url(.address("fe80::1%en0")) == "ws://[fe80::1%25en0]:\(LAN.defaultPort)/")
+    }
+
+    @Test(arguments: ["", "  ", "host:0", "host:99999", "host:abc", "http://host", "two words", "[::1"])
+    func rejectsNonAddresses(_ text: String) {
+        #expect(DiscoveredHost.address(text) == nil)
+    }
+}

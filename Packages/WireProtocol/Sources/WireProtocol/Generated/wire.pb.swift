@@ -8,7 +8,10 @@
 // For information on using the generated types, please see the documentation:
 //   https://github.com/apple/swift-protobuf/
 
-// Farside wire protocol, version 1 (plan sections 10, 11 and 21 C).
+// Farside wire protocol, version 1.1 (plan sections 9, 10, 11 and 21 C).
+//
+// 1.0: handshake, stream config, displays, ping, bye.
+// 1.1: input (30s) and cursor (40s) messages, Phase 2.
 //
 // Every data channel message is exactly one Envelope. The channel keeps message boundaries,
 // so there is no length prefix.
@@ -200,6 +203,176 @@ public nonisolated enum Farside_V1_EndReason: SwiftProtobuf.Enum, Swift.CaseIter
 
 }
 
+/// Mouse buttons. In `PointerMove.buttons` each is the bit 1 << (button - 1).
+public nonisolated enum Farside_V1_MouseButton: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+  case left // = 1
+  case right // = 2
+  case middle // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .left
+    case 2: self = .right
+    case 3: self = .middle
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .left: return 1
+    case .right: return 2
+    case .middle: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Farside_V1_MouseButton] = [
+    .unspecified,
+    .left,
+    .right,
+    .middle,
+  ]
+
+}
+
+/// Gesture phases, as NSEvent.Phase uses them.
+public nonisolated enum Farside_V1_ScrollPhase: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case none // = 0
+  case began // = 1
+  case changed // = 2
+  case ended // = 3
+  case cancelled // = 4
+  case mayBegin // = 5
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .none
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .none
+    case 1: self = .began
+    case 2: self = .changed
+    case 3: self = .ended
+    case 4: self = .cancelled
+    case 5: self = .mayBegin
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .none: return 0
+    case .began: return 1
+    case .changed: return 2
+    case .ended: return 3
+    case .cancelled: return 4
+    case .mayBegin: return 5
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Farside_V1_ScrollPhase] = [
+    .none,
+    .began,
+    .changed,
+    .ended,
+    .cancelled,
+    .mayBegin,
+  ]
+
+}
+
+/// Modifier bits for Key.modifiers. The low byte is the USB HID modifier byte, left and right kept
+/// apart, so the Mac can compare it with the keys it has posted. Function and Caps Lock follow.
+/// The iPad builds this set from the modifier keys it has seen go down (spike S7).
+public nonisolated enum Farside_V1_Modifier: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case none // = 0
+  case leftControl // = 1
+  case leftShift // = 2
+  case leftOption // = 4
+  case leftCommand // = 8
+  case rightControl // = 16
+  case rightShift // = 32
+  case rightOption // = 64
+  case rightCommand // = 128
+  case function // = 256
+
+  /// The iPad's Caps Lock is on. The Mac applies it as Shift on letters and never posts Caps Lock
+  /// (spike S2).
+  case capsLock // = 512
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .none
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .none
+    case 1: self = .leftControl
+    case 2: self = .leftShift
+    case 4: self = .leftOption
+    case 8: self = .leftCommand
+    case 16: self = .rightControl
+    case 32: self = .rightShift
+    case 64: self = .rightOption
+    case 128: self = .rightCommand
+    case 256: self = .function
+    case 512: self = .capsLock
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .none: return 0
+    case .leftControl: return 1
+    case .leftShift: return 2
+    case .leftOption: return 4
+    case .leftCommand: return 8
+    case .rightControl: return 16
+    case .rightShift: return 32
+    case .rightOption: return 64
+    case .rightCommand: return 128
+    case .function: return 256
+    case .capsLock: return 512
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Farside_V1_Modifier] = [
+    .none,
+    .leftControl,
+    .leftShift,
+    .leftOption,
+    .leftCommand,
+    .rightControl,
+    .rightShift,
+    .rightOption,
+    .rightCommand,
+    .function,
+    .capsLock,
+  ]
+
+}
+
 public nonisolated struct Farside_V1_Envelope: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -278,6 +451,100 @@ public nonisolated struct Farside_V1_Envelope: Sendable {
     set {body = .bye(newValue)}
   }
 
+  /// input, iPad to Mac (reliable `input` channel unless noted)
+  public var pointerMove: Farside_V1_PointerMove {
+    get {
+      if case .pointerMove(let v)? = body {return v}
+      return Farside_V1_PointerMove()
+    }
+    set {body = .pointerMove(newValue)}
+  }
+
+  /// `pointer` channel
+  public var pointerDelta: Farside_V1_PointerDelta {
+    get {
+      if case .pointerDelta(let v)? = body {return v}
+      return Farside_V1_PointerDelta()
+    }
+    set {body = .pointerDelta(newValue)}
+  }
+
+  public var button: Farside_V1_Button {
+    get {
+      if case .button(let v)? = body {return v}
+      return Farside_V1_Button()
+    }
+    set {body = .button(newValue)}
+  }
+
+  public var scroll: Farside_V1_Scroll {
+    get {
+      if case .scroll(let v)? = body {return v}
+      return Farside_V1_Scroll()
+    }
+    set {body = .scroll(newValue)}
+  }
+
+  public var key: Farside_V1_Key {
+    get {
+      if case .key(let v)? = body {return v}
+      return Farside_V1_Key()
+    }
+    set {body = .key(newValue)}
+  }
+
+  public var text: Farside_V1_Text {
+    get {
+      if case .text(let v)? = body {return v}
+      return Farside_V1_Text()
+    }
+    set {body = .text(newValue)}
+  }
+
+  public var releaseAll: Farside_V1_ReleaseAll {
+    get {
+      if case .releaseAll(let v)? = body {return v}
+      return Farside_V1_ReleaseAll()
+    }
+    set {body = .releaseAll(newValue)}
+  }
+
+  /// 37 is TabletSample, Phase 6.
+  public var inputHeartbeat: Farside_V1_InputHeartbeat {
+    get {
+      if case .inputHeartbeat(let v)? = body {return v}
+      return Farside_V1_InputHeartbeat()
+    }
+    set {body = .inputHeartbeat(newValue)}
+  }
+
+  /// cursor, Mac to iPad
+  public var cursorShape: Farside_V1_CursorShape {
+    get {
+      if case .cursorShape(let v)? = body {return v}
+      return Farside_V1_CursorShape()
+    }
+    set {body = .cursorShape(newValue)}
+  }
+
+  /// `control` channel
+  public var cursorState: Farside_V1_CursorState {
+    get {
+      if case .cursorState(let v)? = body {return v}
+      return Farside_V1_CursorState()
+    }
+    set {body = .cursorState(newValue)}
+  }
+
+  /// `cursor` channel
+  public var cursorPosition: Farside_V1_CursorPosition {
+    get {
+      if case .cursorPosition(let v)? = body {return v}
+      return Farside_V1_CursorPosition()
+    }
+    set {body = .cursorPosition(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Body: Equatable, Sendable {
@@ -290,6 +557,23 @@ public nonisolated struct Farside_V1_Envelope: Sendable {
     case ping(Farside_V1_Ping)
     case pong(Farside_V1_Pong)
     case bye(Farside_V1_Bye)
+    /// input, iPad to Mac (reliable `input` channel unless noted)
+    case pointerMove(Farside_V1_PointerMove)
+    /// `pointer` channel
+    case pointerDelta(Farside_V1_PointerDelta)
+    case button(Farside_V1_Button)
+    case scroll(Farside_V1_Scroll)
+    case key(Farside_V1_Key)
+    case text(Farside_V1_Text)
+    case releaseAll(Farside_V1_ReleaseAll)
+    /// 37 is TabletSample, Phase 6.
+    case inputHeartbeat(Farside_V1_InputHeartbeat)
+    /// cursor, Mac to iPad
+    case cursorShape(Farside_V1_CursorShape)
+    /// `control` channel
+    case cursorState(Farside_V1_CursorState)
+    /// `cursor` channel
+    case cursorPosition(Farside_V1_CursorPosition)
 
   }
 
@@ -643,6 +927,208 @@ public nonisolated struct Farside_V1_Bye: Sendable {
   public init() {}
 }
 
+/// Pointer moved. Newest wins: the Mac drops one older than the newest it has posted, using the
+/// envelope `seq`. Posted as a drag while a button is held.
+public nonisolated struct Farside_V1_PointerMove: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var displayID: UInt32 = 0
+
+  /// 0...1 across the display.
+  public var x: Float = 0
+
+  /// 0...1 down the display.
+  public var y: Float = 0
+
+  /// Held buttons, bit set (see MouseButton).
+  public var buttons: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Relative movement, for pointer lock and trackpad mode.
+public nonisolated struct Farside_V1_PointerDelta: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Points.
+  public var dx: Float = 0
+
+  public var dy: Float = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Farside_V1_Button: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var button: Farside_V1_MouseButton = .unspecified
+
+  public var down: Bool = false
+
+  /// 1 for a single click, 2 for the second click of a double click.
+  public var clickCount: UInt32 = 0
+
+  public var displayID: UInt32 = 0
+
+  /// 0...1, where the click happens.
+  public var x: Float = 0
+
+  public var y: Float = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Farside_V1_Scroll: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Points when continuous, lines when not.
+  public var dx: Float = 0
+
+  public var dy: Float = 0
+
+  public var phase: Farside_V1_ScrollPhase = .none
+
+  public var momentumPhase: Farside_V1_ScrollPhase = .none
+
+  /// A trackpad gesture rather than a mouse wheel.
+  public var continuous: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Farside_V1_Key: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// USB HID keyboard usage, page 7.
+  public var hidUsage: UInt32 = 0
+
+  public var down: Bool = false
+
+  /// Full set after this event, bit set (see Modifier).
+  public var modifiers: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Committed text from the software keyboard, dictation or an input method.
+public nonisolated struct Farside_V1_Text: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var text: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Release every key and button the Mac holds for this session.
+public nonisolated struct Farside_V1_ReleaseAll: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Sent while any key or button is held, so the Mac can stop repeats and release input when the
+/// iPad goes quiet.
+public nonisolated struct Farside_V1_InputHeartbeat: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A cursor image, sent once per distinct shape. Later messages refer to it by id.
+public nonisolated struct Farside_V1_CursorShape: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: UInt32 = 0
+
+  /// At `scale` pixels per point.
+  public var png: Data = Data()
+
+  /// Points.
+  public var width: Float = 0
+
+  public var height: Float = 0
+
+  /// Points from the top left.
+  public var hotX: Float = 0
+
+  public var hotY: Float = 0
+
+  public var scale: Float = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Farside_V1_CursorState: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var shapeID: UInt32 = 0
+
+  public var visible: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Where the cursor is, sent only when something other than this iPad moved it.
+public nonisolated struct Farside_V1_CursorPosition: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var displayID: UInt32 = 0
+
+  /// 0...1 across the display.
+  public var x: Float = 0
+
+  public var y: Float = 0
+
+  /// Envelope seq of the newest PointerMove the Mac had posted.
+  public var lastInputSeq: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "farside.v1"
@@ -659,9 +1145,21 @@ nonisolated extension Farside_V1_EndReason: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0END_REASON_UNSPECIFIED\0\u{1}END_REASON_USER_ENDED\0\u{1}END_REASON_HOST_ENDED\0\u{1}END_REASON_TAKEN_OVER\0\u{1}END_REASON_RING_TIMEOUT\0\u{1}END_REASON_PATH_TIMEOUT\0\u{1}END_REASON_AUTH_FAILED\0\u{1}END_REASON_VERSION_MISMATCH\0\u{1}END_REASON_PERMISSION_MISSING\0\u{1}END_REASON_HOST_SLEEPING\0\u{1}END_REASON_NETWORK_LOST\0\u{1}END_REASON_INTERNAL_ERROR\0\u{1}END_REASON_BUSY\0")
 }
 
+nonisolated extension Farside_V1_MouseButton: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0MOUSE_BUTTON_UNSPECIFIED\0\u{1}MOUSE_BUTTON_LEFT\0\u{1}MOUSE_BUTTON_RIGHT\0\u{1}MOUSE_BUTTON_MIDDLE\0")
+}
+
+nonisolated extension Farside_V1_ScrollPhase: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SCROLL_PHASE_NONE\0\u{1}SCROLL_PHASE_BEGAN\0\u{1}SCROLL_PHASE_CHANGED\0\u{1}SCROLL_PHASE_ENDED\0\u{1}SCROLL_PHASE_CANCELLED\0\u{1}SCROLL_PHASE_MAY_BEGIN\0")
+}
+
+nonisolated extension Farside_V1_Modifier: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0MODIFIER_NONE\0\u{1}MODIFIER_LEFT_CONTROL\0\u{1}MODIFIER_LEFT_SHIFT\0\u{2}\u{2}MODIFIER_LEFT_OPTION\0\u{2}\u{4}MODIFIER_LEFT_COMMAND\0\u{2}\u{8}MODIFIER_RIGHT_CONTROL\0\u{2}\u{10}MODIFIER_RIGHT_SHIFT\0\u{2} MODIFIER_RIGHT_OPTION\0\u{2}@\u{1}MODIFIER_RIGHT_COMMAND\0\u{2}@\u{2}MODIFIER_FUNCTION\0\u{2}@\u{4}MODIFIER_CAPS_LOCK\0")
+}
+
 nonisolated extension Farside_V1_Envelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Envelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}seq\0\u{3}sent_at_us\0\u{2}\u{8}hello\0\u{3}hello_ack\0\u{3}stream_config\0\u{3}stream_config_applied\0\u{3}display_list\0\u{1}ping\0\u{1}pong\0\u{2}\u{7}bye\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}seq\0\u{3}sent_at_us\0\u{2}\u{8}hello\0\u{3}hello_ack\0\u{3}stream_config\0\u{3}stream_config_applied\0\u{3}display_list\0\u{1}ping\0\u{1}pong\0\u{2}\u{7}bye\0\u{4}\u{7}pointer_move\0\u{3}pointer_delta\0\u{1}button\0\u{1}scroll\0\u{1}key\0\u{1}text\0\u{3}release_all\0\u{4}\u{2}input_heartbeat\0\u{4}\u{2}cursor_shape\0\u{3}cursor_state\0\u{3}cursor_position\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -775,6 +1273,149 @@ nonisolated extension Farside_V1_Envelope: SwiftProtobuf.Message, SwiftProtobuf.
           self.body = .bye(v)
         }
       }()
+      case 30: try {
+        var v: Farside_V1_PointerMove?
+        var hadOneofValue = false
+        if let current = self.body {
+          hadOneofValue = true
+          if case .pointerMove(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.body = .pointerMove(v)
+        }
+      }()
+      case 31: try {
+        var v: Farside_V1_PointerDelta?
+        var hadOneofValue = false
+        if let current = self.body {
+          hadOneofValue = true
+          if case .pointerDelta(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.body = .pointerDelta(v)
+        }
+      }()
+      case 32: try {
+        var v: Farside_V1_Button?
+        var hadOneofValue = false
+        if let current = self.body {
+          hadOneofValue = true
+          if case .button(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.body = .button(v)
+        }
+      }()
+      case 33: try {
+        var v: Farside_V1_Scroll?
+        var hadOneofValue = false
+        if let current = self.body {
+          hadOneofValue = true
+          if case .scroll(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.body = .scroll(v)
+        }
+      }()
+      case 34: try {
+        var v: Farside_V1_Key?
+        var hadOneofValue = false
+        if let current = self.body {
+          hadOneofValue = true
+          if case .key(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.body = .key(v)
+        }
+      }()
+      case 35: try {
+        var v: Farside_V1_Text?
+        var hadOneofValue = false
+        if let current = self.body {
+          hadOneofValue = true
+          if case .text(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.body = .text(v)
+        }
+      }()
+      case 36: try {
+        var v: Farside_V1_ReleaseAll?
+        var hadOneofValue = false
+        if let current = self.body {
+          hadOneofValue = true
+          if case .releaseAll(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.body = .releaseAll(v)
+        }
+      }()
+      case 38: try {
+        var v: Farside_V1_InputHeartbeat?
+        var hadOneofValue = false
+        if let current = self.body {
+          hadOneofValue = true
+          if case .inputHeartbeat(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.body = .inputHeartbeat(v)
+        }
+      }()
+      case 40: try {
+        var v: Farside_V1_CursorShape?
+        var hadOneofValue = false
+        if let current = self.body {
+          hadOneofValue = true
+          if case .cursorShape(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.body = .cursorShape(v)
+        }
+      }()
+      case 41: try {
+        var v: Farside_V1_CursorState?
+        var hadOneofValue = false
+        if let current = self.body {
+          hadOneofValue = true
+          if case .cursorState(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.body = .cursorState(v)
+        }
+      }()
+      case 42: try {
+        var v: Farside_V1_CursorPosition?
+        var hadOneofValue = false
+        if let current = self.body {
+          hadOneofValue = true
+          if case .cursorPosition(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.body = .cursorPosition(v)
+        }
+      }()
       default: break
       }
     }
@@ -823,6 +1464,50 @@ nonisolated extension Farside_V1_Envelope: SwiftProtobuf.Message, SwiftProtobuf.
     case .bye?: try {
       guard case .bye(let v)? = self.body else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 23)
+    }()
+    case .pointerMove?: try {
+      guard case .pointerMove(let v)? = self.body else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 30)
+    }()
+    case .pointerDelta?: try {
+      guard case .pointerDelta(let v)? = self.body else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 31)
+    }()
+    case .button?: try {
+      guard case .button(let v)? = self.body else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 32)
+    }()
+    case .scroll?: try {
+      guard case .scroll(let v)? = self.body else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 33)
+    }()
+    case .key?: try {
+      guard case .key(let v)? = self.body else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 34)
+    }()
+    case .text?: try {
+      guard case .text(let v)? = self.body else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 35)
+    }()
+    case .releaseAll?: try {
+      guard case .releaseAll(let v)? = self.body else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 36)
+    }()
+    case .inputHeartbeat?: try {
+      guard case .inputHeartbeat(let v)? = self.body else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 38)
+    }()
+    case .cursorShape?: try {
+      guard case .cursorShape(let v)? = self.body else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 40)
+    }()
+    case .cursorState?: try {
+      guard case .cursorState(let v)? = self.body else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 41)
+    }()
+    case .cursorPosition?: try {
+      guard case .cursorPosition(let v)? = self.body else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 42)
     }()
     case nil: break
     }
@@ -1558,6 +2243,439 @@ nonisolated extension Farside_V1_Bye: SwiftProtobuf.Message, SwiftProtobuf._Mess
   public static func ==(lhs: Farside_V1_Bye, rhs: Farside_V1_Bye) -> Bool {
     if lhs.reason != rhs.reason {return false}
     if lhs.detail != rhs.detail {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Farside_V1_PointerMove: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PointerMove"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_id\0\u{1}x\0\u{1}y\0\u{1}buttons\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.displayID) }()
+      case 2: try { try decoder.decodeSingularFloatField(value: &self.x) }()
+      case 3: try { try decoder.decodeSingularFloatField(value: &self.y) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.buttons) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.displayID != 0 {
+      try visitor.visitSingularUInt32Field(value: self.displayID, fieldNumber: 1)
+    }
+    if self.x.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.x, fieldNumber: 2)
+    }
+    if self.y.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.y, fieldNumber: 3)
+    }
+    if self.buttons != 0 {
+      try visitor.visitSingularUInt32Field(value: self.buttons, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Farside_V1_PointerMove, rhs: Farside_V1_PointerMove) -> Bool {
+    if lhs.displayID != rhs.displayID {return false}
+    if lhs.x != rhs.x {return false}
+    if lhs.y != rhs.y {return false}
+    if lhs.buttons != rhs.buttons {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Farside_V1_PointerDelta: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PointerDelta"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}dx\0\u{1}dy\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularFloatField(value: &self.dx) }()
+      case 2: try { try decoder.decodeSingularFloatField(value: &self.dy) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.dx.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.dx, fieldNumber: 1)
+    }
+    if self.dy.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.dy, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Farside_V1_PointerDelta, rhs: Farside_V1_PointerDelta) -> Bool {
+    if lhs.dx != rhs.dx {return false}
+    if lhs.dy != rhs.dy {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Farside_V1_Button: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Button"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}button\0\u{1}down\0\u{3}click_count\0\u{3}display_id\0\u{1}x\0\u{1}y\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.button) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.down) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.clickCount) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.displayID) }()
+      case 5: try { try decoder.decodeSingularFloatField(value: &self.x) }()
+      case 6: try { try decoder.decodeSingularFloatField(value: &self.y) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.button != .unspecified {
+      try visitor.visitSingularEnumField(value: self.button, fieldNumber: 1)
+    }
+    if self.down != false {
+      try visitor.visitSingularBoolField(value: self.down, fieldNumber: 2)
+    }
+    if self.clickCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.clickCount, fieldNumber: 3)
+    }
+    if self.displayID != 0 {
+      try visitor.visitSingularUInt32Field(value: self.displayID, fieldNumber: 4)
+    }
+    if self.x.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.x, fieldNumber: 5)
+    }
+    if self.y.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.y, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Farside_V1_Button, rhs: Farside_V1_Button) -> Bool {
+    if lhs.button != rhs.button {return false}
+    if lhs.down != rhs.down {return false}
+    if lhs.clickCount != rhs.clickCount {return false}
+    if lhs.displayID != rhs.displayID {return false}
+    if lhs.x != rhs.x {return false}
+    if lhs.y != rhs.y {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Farside_V1_Scroll: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Scroll"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}dx\0\u{1}dy\0\u{1}phase\0\u{3}momentum_phase\0\u{1}continuous\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularFloatField(value: &self.dx) }()
+      case 2: try { try decoder.decodeSingularFloatField(value: &self.dy) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.phase) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.momentumPhase) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.continuous) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.dx.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.dx, fieldNumber: 1)
+    }
+    if self.dy.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.dy, fieldNumber: 2)
+    }
+    if self.phase != .none {
+      try visitor.visitSingularEnumField(value: self.phase, fieldNumber: 3)
+    }
+    if self.momentumPhase != .none {
+      try visitor.visitSingularEnumField(value: self.momentumPhase, fieldNumber: 4)
+    }
+    if self.continuous != false {
+      try visitor.visitSingularBoolField(value: self.continuous, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Farside_V1_Scroll, rhs: Farside_V1_Scroll) -> Bool {
+    if lhs.dx != rhs.dx {return false}
+    if lhs.dy != rhs.dy {return false}
+    if lhs.phase != rhs.phase {return false}
+    if lhs.momentumPhase != rhs.momentumPhase {return false}
+    if lhs.continuous != rhs.continuous {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Farside_V1_Key: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Key"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}hid_usage\0\u{1}down\0\u{1}modifiers\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.hidUsage) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.down) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.modifiers) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.hidUsage != 0 {
+      try visitor.visitSingularUInt32Field(value: self.hidUsage, fieldNumber: 1)
+    }
+    if self.down != false {
+      try visitor.visitSingularBoolField(value: self.down, fieldNumber: 2)
+    }
+    if self.modifiers != 0 {
+      try visitor.visitSingularUInt32Field(value: self.modifiers, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Farside_V1_Key, rhs: Farside_V1_Key) -> Bool {
+    if lhs.hidUsage != rhs.hidUsage {return false}
+    if lhs.down != rhs.down {return false}
+    if lhs.modifiers != rhs.modifiers {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Farside_V1_Text: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Text"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}text\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.text) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.text.isEmpty {
+      try visitor.visitSingularStringField(value: self.text, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Farside_V1_Text, rhs: Farside_V1_Text) -> Bool {
+    if lhs.text != rhs.text {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Farside_V1_ReleaseAll: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReleaseAll"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Farside_V1_ReleaseAll, rhs: Farside_V1_ReleaseAll) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Farside_V1_InputHeartbeat: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".InputHeartbeat"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Farside_V1_InputHeartbeat, rhs: Farside_V1_InputHeartbeat) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Farside_V1_CursorShape: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CursorShape"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}png\0\u{1}width\0\u{1}height\0\u{3}hot_x\0\u{3}hot_y\0\u{1}scale\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.png) }()
+      case 3: try { try decoder.decodeSingularFloatField(value: &self.width) }()
+      case 4: try { try decoder.decodeSingularFloatField(value: &self.height) }()
+      case 5: try { try decoder.decodeSingularFloatField(value: &self.hotX) }()
+      case 6: try { try decoder.decodeSingularFloatField(value: &self.hotY) }()
+      case 7: try { try decoder.decodeSingularFloatField(value: &self.scale) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.id != 0 {
+      try visitor.visitSingularUInt32Field(value: self.id, fieldNumber: 1)
+    }
+    if !self.png.isEmpty {
+      try visitor.visitSingularBytesField(value: self.png, fieldNumber: 2)
+    }
+    if self.width.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.width, fieldNumber: 3)
+    }
+    if self.height.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.height, fieldNumber: 4)
+    }
+    if self.hotX.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.hotX, fieldNumber: 5)
+    }
+    if self.hotY.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.hotY, fieldNumber: 6)
+    }
+    if self.scale.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.scale, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Farside_V1_CursorShape, rhs: Farside_V1_CursorShape) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.png != rhs.png {return false}
+    if lhs.width != rhs.width {return false}
+    if lhs.height != rhs.height {return false}
+    if lhs.hotX != rhs.hotX {return false}
+    if lhs.hotY != rhs.hotY {return false}
+    if lhs.scale != rhs.scale {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Farside_V1_CursorState: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CursorState"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}shape_id\0\u{1}visible\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.shapeID) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.visible) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.shapeID != 0 {
+      try visitor.visitSingularUInt32Field(value: self.shapeID, fieldNumber: 1)
+    }
+    if self.visible != false {
+      try visitor.visitSingularBoolField(value: self.visible, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Farside_V1_CursorState, rhs: Farside_V1_CursorState) -> Bool {
+    if lhs.shapeID != rhs.shapeID {return false}
+    if lhs.visible != rhs.visible {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Farside_V1_CursorPosition: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CursorPosition"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_id\0\u{1}x\0\u{1}y\0\u{3}last_input_seq\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.displayID) }()
+      case 2: try { try decoder.decodeSingularFloatField(value: &self.x) }()
+      case 3: try { try decoder.decodeSingularFloatField(value: &self.y) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.lastInputSeq) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.displayID != 0 {
+      try visitor.visitSingularUInt32Field(value: self.displayID, fieldNumber: 1)
+    }
+    if self.x.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.x, fieldNumber: 2)
+    }
+    if self.y.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.y, fieldNumber: 3)
+    }
+    if self.lastInputSeq != 0 {
+      try visitor.visitSingularUInt32Field(value: self.lastInputSeq, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Farside_V1_CursorPosition, rhs: Farside_V1_CursorPosition) -> Bool {
+    if lhs.displayID != rhs.displayID {return false}
+    if lhs.x != rhs.x {return false}
+    if lhs.y != rhs.y {return false}
+    if lhs.lastInputSeq != rhs.lastInputSeq {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

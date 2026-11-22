@@ -15,5 +15,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "ClientVideo", dependencies: ["MediaCore"]),
+        .testTarget(name: "ClientVideoTests", dependencies: ["ClientVideo"]),
     ]
 )

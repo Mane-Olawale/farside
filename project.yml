@@ -54,6 +54,7 @@ targets:
     dependencies:
       - package: ClientVideo
       - package: ClientInput
+      - package: InputModel
       - package: WireProtocol
       - package: MediaCore
       - package: SessionTransport
@@ -103,6 +104,7 @@ targets:
     dependencies:
       - package: HostCapture
       - package: HostInput
+      - package: InputModel
       - package: WireProtocol
       - package: MediaCore
       - package: SessionTransport
@@ -190,6 +192,7 @@ targets:
       - path: Tools/InputProbe
     dependencies:
       - package: HostInput
+      - package: InputModel
       - package: Telemetry
       - sdk: Carbon.framework
     settings:

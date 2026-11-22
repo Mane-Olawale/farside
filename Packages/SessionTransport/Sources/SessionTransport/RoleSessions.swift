@@ -40,6 +40,13 @@ public protocol HostSessionDelegate: AnyObject, Sendable {
     func hostSessionStartMedia(_ applied: Farside_V1_StreamConfigApplied)
     func hostSessionStopMedia()
     func hostSessionStateChanged(_ state: SessionState, client: DeviceInfo?)
+    /// Input from the iPad (plan section 9), only while streaming. `seq` is the envelope's, which
+    /// orders pointer moves on the unreliable channel.
+    func hostSessionInput(_ body: Envelope.OneOf_Body, seq: UInt32)
+}
+
+extension HostSessionDelegate {
+    public func hostSessionInput(_ body: Envelope.OneOf_Body, seq: UInt32) {}
 }
 
 /// The Mac's side of one session (plan section 11, handshake): waits for Hello, answers with
@@ -81,8 +88,17 @@ public final class HostSession: SessionBase, @unchecked Sendable {
         if machine.state == .negotiating { transport?.start() }
     }
 
-    override func received(_ body: Envelope.OneOf_Body) {
+    /// Sends a cursor message to the iPad (plan section 10). Dropped unless streaming.
+    public func sendCursor(_ body: Envelope.OneOf_Body) {
+        queue.async { [self] in sendWhileStreaming(body) }
+    }
+
+    override func received(_ body: Envelope.OneOf_Body, seq: UInt32) {
         switch body {
+        case .pointerMove, .pointerDelta, .button, .scroll, .key, .text, .releaseAll, .inputHeartbeat:
+            guard machine.state == .streaming else { return }
+            delegate?.hostSessionInput(body, seq: seq)
+
         case .hello(let hello):
             guard machine.state == .securing, client == nil else { return }
             guard Wire.isCompatible(major: hello.protocolMajor) else {
@@ -153,6 +169,12 @@ public protocol ClientSessionDelegate: AnyObject, Sendable {
     func clientSessionDisplaysChanged(_ displays: [Farside_V1_Display])
     func clientSessionStateChanged(_ state: SessionState, host: DeviceInfo?)
     func clientSessionRoundTrip(_ seconds: Double)
+    /// Cursor shape, state and position from the Mac (plan section 10), only while streaming.
+    func clientSessionCursor(_ body: Envelope.OneOf_Body)
+}
+
+extension ClientSessionDelegate {
+    public func clientSessionCursor(_ body: Envelope.OneOf_Body) {}
 }
 
 /// The iPad's side of one session: sends Hello when the control channel opens, then asks for a
@@ -197,8 +219,22 @@ public final class ClientSession: SessionBase, @unchecked Sendable {
         }))
     }
 
-    override func received(_ body: Envelope.OneOf_Body) {
+    /// Sends input to the Mac (plan section 9). Dropped unless streaming. Call from one thread to
+    /// keep messages in order. Returns the envelope sequence number the message carries, which the
+    /// Mac echoes in cursor reports (plan section 9, local cursor prediction).
+    @discardableResult
+    public func sendInput(_ body: Envelope.OneOf_Body) -> UInt32 {
+        let seq = nextSeq()
+        queue.async { [self] in sendWhileStreaming(body, seq: seq) }
+        return seq
+    }
+
+    override func received(_ body: Envelope.OneOf_Body, seq: UInt32) {
         switch body {
+        case .cursorShape, .cursorState, .cursorPosition:
+            guard machine.state == .streaming else { return }
+            delegate?.clientSessionCursor(body)
+
         case .helloAck(let ack):
             guard machine.state == .securing, host == nil else { return }
             guard Wire.isCompatible(major: ack.protocolMajor) else {

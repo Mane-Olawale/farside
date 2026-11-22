@@ -1,5 +1,6 @@
 import Foundation
 import MediaCore
+import Synchronization
 import WireProtocol
 
 /// The signaling path a session uses. `SignalingConnection` is the LAN one; tests use a pair in
@@ -26,7 +27,9 @@ public class SessionBase: @unchecked Sendable {
     private var pingTimer: DispatchSourceTimer?
     private(set) var transport: SessionTransport?
     let signaling: SignalingChannel
-    private var controlSeq: UInt32 = 0
+    /// Envelope sequence numbers, one counter for all channels. Atomic so a caller can learn the
+    /// number its message will carry before the message is sent.
+    private let sequence = Atomic<UInt32>(0)
     private var pathConnected = false
     private var controlOpen = false
     private var signalingReady = false
@@ -79,7 +82,7 @@ public class SessionBase: @unchecked Sendable {
     // MARK: Subclass hooks, on the queue
 
     func controlChannelOpened() {}
-    func received(_ body: Envelope.OneOf_Body) {}
+    func received(_ body: Envelope.OneOf_Body, seq: UInt32) {}
     func effect(_ effect: SessionEffect) {}
     func stateChanged(_ state: SessionState) {}
 
@@ -149,9 +152,20 @@ public class SessionBase: @unchecked Sendable {
         queue.asyncAfter(deadline: .now() + delay.timeInterval, execute: item)
     }
 
-    func send(_ body: Envelope.OneOf_Body) {
-        controlSeq &+= 1
-        let envelope = Envelope(seq: controlSeq, sentAtMicroseconds: Self.microseconds(), body: body)
+    /// Sends a session message, but only while streaming: input and cursor updates mean nothing
+    /// before the handshake or while paused, and are dropped. Returns whether it went out.
+    @discardableResult
+    func sendWhileStreaming(_ body: Envelope.OneOf_Body, seq: UInt32? = nil) -> Bool {
+        guard machine.state == .streaming else { return false }
+        send(body, seq: seq)
+        return true
+    }
+
+    /// The next envelope sequence number. Wraps.
+    func nextSeq() -> UInt32 { sequence.add(1, ordering: .relaxed).newValue }
+
+    func send(_ body: Envelope.OneOf_Body, seq: UInt32? = nil) {
+        let envelope = Envelope(seq: seq ?? nextSeq(), sentAtMicroseconds: Self.microseconds(), body: body)
         do {
             transport?.send(try envelope.encoded(), on: body.channel)
         } catch {
@@ -255,7 +269,7 @@ public class SessionBase: @unchecked Sendable {
         case .bye(let bye):
             apply(.peerEnded(SessionEndReason(wire: bye.reason)))
         default:
-            received(body)
+            received(body, seq: envelope.seq)
         }
     }
 

@@ -1,3 +1,4 @@
+import ClientInput
 import ClientVideo
 import Foundation
 import MediaCore
@@ -6,6 +7,7 @@ import os
 import QuartzCore
 import SessionTransport
 import SessionTransportWebRTC
+import Synchronization
 import UIKit
 import WireProtocol
 
@@ -44,10 +46,23 @@ final class ConnectionModel: Identifiable {
     /// From tapping Connect to the first frame on the display (Phase 1 exit criterion: 2 s).
     private(set) var timeToFirstFrame: Double?
     var showsStats = true
+    /// The floating toolbar (plan section 7); a three-finger tap shows or hides it.
+    var showsToolbar = true
+    /// Direct touch or trackpad (plan section 7, input mode). Remembered on this iPad.
+    var inputMode: TouchGestureRecognizer.Mode = TouchGestureRecognizer.Mode(
+        rawValue: UserDefaults.standard.string(forKey: "inputMode") ?? "") ?? .direct {
+        didSet { UserDefaults.standard.set(inputMode.rawValue, forKey: "inputMode") }
+    }
+    /// Runs on the main thread when the Mac applies a new stream configuration.
+    @ObservationIgnored var onAppliedChange: (() -> Void)?
+    /// Keys, modifiers and text for this session.
+    @ObservationIgnored private(set) lazy var keyboard = KeyboardModel { [weak self] body in self?.sendInput(body) }
 
     /// The video surface. Lives as long as this connection.
     @ObservationIgnored let surface = VideoSurfaceView()
     @ObservationIgnored private var presenter: VideoPresenter?
+    /// The Mac's cursor: shapes, the one in use, and its predicted position.
+    @ObservationIgnored private(set) var cursor: CursorModel?
     @ObservationIgnored private var session: ClientSession?
     @ObservationIgnored private var transport: WebRTCTransport?
     @ObservationIgnored private var link: ClientLink?
@@ -70,7 +85,10 @@ final class ConnectionModel: Identifiable {
         presenter.start()
         self.presenter = presenter
 
+        let cursor = CursorModel(presenter: presenter)
+        self.cursor = cursor
         let link = ClientLink(model: self)
+        link.cursor.withLock { $0 = cursor }
         let log = self.log
         let signaling = SignalingConnection.connect(to: host.endpoint)
         let session = ClientSession(signaling: signaling, local: Self.deviceInfo(), delegate: link,
@@ -91,6 +109,20 @@ final class ConnectionModel: Identifiable {
         self.transport = transport
         session.start(transport: transport)
         startStats()
+    }
+
+    // MARK: Input and drawing, for the session view controller
+
+    /// Sends input to the Mac. Returns the envelope sequence number, or nil when not connected.
+    @discardableResult
+    func sendInput(_ body: Envelope.OneOf_Body) -> UInt32? {
+        guard state == .streaming, let session else { return nil }
+        return session.sendInput(body)
+    }
+
+    /// Where the video and cursor are drawn from the next refresh on.
+    func setScene(_ scene: RenderScene) {
+        presenter?.setScene(scene)
     }
 
     func disconnect() {
@@ -119,6 +151,8 @@ final class ConnectionModel: Identifiable {
 
     func appliedChanged(_ applied: Farside_V1_StreamConfigApplied) {
         self.applied = applied
+        cursor?.setDisplay(applied.displayID)
+        onAppliedChange?()
     }
 
     func roundTrip(_ seconds: Double) {
@@ -267,6 +301,12 @@ private final class ClientLink: ClientSessionDelegate, @unchecked Sendable {
 
     func clientSessionRoundTrip(_ seconds: Double) {
         Task { @MainActor [weak model] in model?.roundTrip(seconds) }
+    }
+
+    /// Straight to the cursor model, off the main thread: shapes upload to the GPU here.
+    let cursor = Mutex<CursorModel?>(nil)
+    func clientSessionCursor(_ body: Envelope.OneOf_Body) {
+        cursor.withLock { $0 }?.handle(body)
     }
 }
 

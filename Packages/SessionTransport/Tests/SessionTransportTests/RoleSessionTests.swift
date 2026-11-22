@@ -74,6 +74,9 @@ final class HostRecorder: HostSessionDelegate, @unchecked Sendable {
     }
     func hostSessionStopMedia() { lock.withLock { log.append("stop") } }
     func hostSessionStateChanged(_ state: SessionState, client: DeviceInfo?) { lock.withLock { states.append(state) } }
+    private(set) var input: [(Envelope.OneOf_Body, UInt32)] = []
+    func hostSessionInput(_ body: Envelope.OneOf_Body, seq: UInt32) { lock.withLock { input.append((body, seq)) } }
+    var inputBodies: [Envelope.OneOf_Body] { lock.withLock { input.map(\.0) } }
 
     var snapshot: (log: [String], states: [SessionState]) { lock.withLock { (log, states) } }
 }
@@ -93,6 +96,9 @@ final class ClientRecorder: ClientSessionDelegate, @unchecked Sendable {
     func clientSessionDisplaysChanged(_ displays: [Farside_V1_Display]) {}
     func clientSessionStateChanged(_ state: SessionState, host: DeviceInfo?) { lock.withLock { states.append(state) } }
     func clientSessionRoundTrip(_ seconds: Double) { lock.withLock { roundTrips.append(seconds) } }
+    private(set) var cursor: [Envelope.OneOf_Body] = []
+    func clientSessionCursor(_ body: Envelope.OneOf_Body) { lock.withLock { cursor.append(body) } }
+    var cursorBodies: [Envelope.OneOf_Body] { lock.withLock { cursor } }
 
     var snapshot: (states: [SessionState], applied: Farside_V1_StreamConfigApplied?, host: DeviceInfo?, rtts: [Double]) {
         lock.withLock { (states, applied, host, roundTrips) }
@@ -151,6 +157,38 @@ func eventually(_ seconds: Double = 3, _ condition: () -> Bool) async -> Bool {
 
     /// The transport connects before the client's own signaling reports ready. The client must
     /// still notice the path once it starts negotiating.
+    /// Input goes from the iPad to the host's delegate in order, with increasing sequence numbers,
+    /// and cursor messages come back.
+    @Test func inputAndCursorFlowWhileStreaming() async {
+        let p = connect()
+        #expect(await eventually { p.host.state == .streaming && p.client.state == .streaming })
+        p.client.sendInput(.key(.with { $0.hidUsage = 0x0E; $0.down = true }))
+        let moveSeq = p.client.sendInput(.pointerMove(.with { $0.displayID = 1; $0.x = 0.5; $0.y = 0.5 }))
+        p.client.sendInput(.key(.with { $0.hidUsage = 0x0E; $0.down = false }))
+        #expect(await eventually { p.hostRecorder.inputBodies.count == 3 })
+        let input = p.hostRecorder.input
+        #expect(input.map(\.0.channel) == [.input, .pointer, .input])
+        #expect(input[0].1 < input[1].1 && input[1].1 < input[2].1)
+        #expect(input[1].1 == moveSeq, "the host sees the number sendInput returned")
+        p.host.sendCursor(.cursorPosition(.with { $0.x = 0.25; $0.lastInputSeq = input[1].1 }))
+        #expect(await eventually { p.clientRecorder.cursorBodies.count == 1 })
+    }
+
+    /// Before streaming there is nothing to control: input is not even sent.
+    @Test func inputBeforeStreamingIsDropped() async {
+        let (hostSignal, clientSignal) = InMemorySignaling.pair()
+        let hostRecorder = HostRecorder(), clientRecorder = ClientRecorder()
+        let host = HostSession(signaling: hostSignal, local: macInfo, delegate: hostRecorder)
+        let client = ClientSession(signaling: clientSignal, local: iPadInfo, delegate: clientRecorder)
+        let transports = InMemoryTransport.pair(host: host.transportHandlers(), client: client.transportHandlers())
+        client.sendInput(.releaseAll(.init()))
+        client.start(transport: transports.client)
+        host.start(transport: transports.host)
+        #expect(await eventually { host.state == .streaming })
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(hostRecorder.inputBodies.isEmpty)
+    }
+
     @Test func pathUpBeforeClientSignalingIsReady() async {
         let p = connect(clientReadyDelay: 0.2)
         #expect(await eventually { p.host.state == .streaming && p.client.state == .streaming })
