@@ -48,6 +48,9 @@ jobs:
       - name: Check generated protocol code
         run: make proto-check PROTOC="$RUNNER_TEMP/protoc/bin/protoc"
 
+      - name: Pinned trust only in the apps
+        run: make trust-check
+
       - name: Test
         run: make test
 

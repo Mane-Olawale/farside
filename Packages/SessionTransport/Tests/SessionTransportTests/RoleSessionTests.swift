@@ -1,4 +1,6 @@
 import Foundation
+import Pairing
+import SecureStore
 import Testing
 import WireProtocol
 @testable import SessionTransport
@@ -6,7 +8,17 @@ import WireProtocol
 /// Two signaling ends in memory. Both report ready once started.
 final class InMemorySignaling: SignalingChannel, @unchecked Sendable {
     private let lock = NSLock()
-    weak var peer: InMemorySignaling?
+    weak var other: InMemorySignaling?
+    let identity: LocalIdentity
+    let peer: DeviceID?
+    let pinnedPeerKey: PublicKey?
+    let session: String? = "session-1"
+
+    init(identity: LocalIdentity, peer: DeviceID, pinnedPeerKey: PublicKey?) {
+        self.identity = identity
+        self.peer = peer
+        self.pinnedPeerKey = pinnedPeerKey
+    }
     private var onState: (@Sendable (SignalingConnection.State) -> Void)?
     private var onMessage: (@Sendable (SignalMessage) -> Void)?
     private var closed = false
@@ -14,10 +26,13 @@ final class InMemorySignaling: SignalingChannel, @unchecked Sendable {
     /// Delays this end's ready, to force orderings real sockets only sometimes produce.
     var readyDelay: Double = 0
 
-    static func pair() -> (InMemorySignaling, InMemorySignaling) {
-        let a = InMemorySignaling(), b = InMemorySignaling()
-        a.peer = b
-        b.peer = a
+    /// A Mac and an iPad. Each trusts the other's real key unless told otherwise.
+    static func pair(macTrusts: PublicKey?? = nil, iPadTrusts: PublicKey?? = nil) -> (InMemorySignaling, InMemorySignaling) {
+        let mac = testIdentity("Mac"), iPad = testIdentity("iPad")
+        let a = InMemorySignaling(identity: mac, peer: iPad.id, pinnedPeerKey: macTrusts ?? iPad.publicKey)
+        let b = InMemorySignaling(identity: iPad, peer: mac.id, pinnedPeerKey: iPadTrusts ?? mac.publicKey)
+        a.other = b
+        b.other = a
         return (a, b)
     }
 
@@ -31,7 +46,7 @@ final class InMemorySignaling: SignalingChannel, @unchecked Sendable {
 
     func send(_ message: SignalMessage) {
         lock.withLock { sent.append(message) }
-        guard !lock.withLock({ closed }), let peer else { return }
+        guard !lock.withLock({ closed }), let peer = other else { return }
         let handler = peer.lock.withLock { peer.closed ? nil : peer.onMessage }
         DispatchQueue.global().async { handler?(message) }
     }
@@ -41,7 +56,7 @@ final class InMemorySignaling: SignalingChannel, @unchecked Sendable {
             defer { closed = true }
             return !closed
         }
-        guard first, let peer else { return }
+        guard first, let peer = other else { return }
         let handler = peer.lock.withLock { peer.onState }
         DispatchQueue.global().async { handler?(.closed(nil)) }
     }
@@ -120,6 +135,10 @@ func eventually(_ seconds: Double = 3, _ condition: () -> Bool) async -> Bool {
     return condition()
 }
 
+func testIdentity(_ name: String) -> LocalIdentity {
+    try! LocalIdentity.loadOrCreate(in: MemorySecretStore(), name: name, allowEnclave: false)
+}
+
 @Suite struct RoleSessionTests {
     struct Pair {
         let host: HostSession
@@ -130,8 +149,9 @@ func eventually(_ seconds: Double = 3, _ condition: () -> Bool) async -> Bool {
         let signaling: (host: InMemorySignaling, client: InMemorySignaling)
     }
 
-    func connect(timeouts: SessionTimeouts = .standard, clientReadyDelay: Double = 0) -> Pair {
-        let (hostSignal, clientSignal) = InMemorySignaling.pair()
+    func connect(timeouts: SessionTimeouts = .standard, clientReadyDelay: Double = 0,
+                 macTrusts: PublicKey?? = nil, iPadTrusts: PublicKey?? = nil) -> Pair {
+        let (hostSignal, clientSignal) = InMemorySignaling.pair(macTrusts: macTrusts, iPadTrusts: iPadTrusts)
         clientSignal.readyDelay = clientReadyDelay
         let hostRecorder = HostRecorder(), clientRecorder = ClientRecorder()
         let host = HostSession(signaling: hostSignal, local: macInfo, delegate: hostRecorder, timeouts: timeouts)
@@ -263,7 +283,56 @@ func eventually(_ seconds: Double = 3, _ condition: () -> Bool) async -> Bool {
         #expect(await eventually { received.get().contains { $0.bye.reason == .versionMismatch } })
         #expect(host.state == .ended(.versionMismatch) || host.state == .idle)
         #expect(recorder.snapshot.log.isEmpty)
-        #expect(clientSignal.peer?.sentMessages.contains(.bye(.versionMismatch)) == true)
+        #expect(clientSignal.other?.sentMessages.contains(.bye(.versionMismatch)) == true)
+    }
+
+    // MARK: Identity handshake (plan section 14)
+
+    /// The Mac has no pin for this iPad: the Hello cannot verify, the session ends with auth
+    /// failed, and nothing is captured.
+    @Test func unpairedClientNeverReachesCapture() async {
+        let p = connect(macTrusts: .some(nil))
+        #expect(await eventually { p.host.state == .ended(.authFailed) || p.host.state == .idle })
+        #expect(p.hostRecorder.snapshot.log.isEmpty, "capture never starts")
+        #expect(p.client.state != .streaming)
+    }
+
+    /// The Mac pinned a different key for this iPad id: same outcome.
+    @Test func helloSignedByAnotherKeyFails() async {
+        let p = connect(macTrusts: .some(testIdentity("impostor").publicKey))
+        #expect(await eventually { p.host.state == .ended(.authFailed) || p.host.state == .idle })
+        #expect(p.hostRecorder.snapshot.log.isEmpty)
+    }
+
+    /// The iPad pinned a different key for this Mac: it refuses the HelloAck and never asks
+    /// for a stream.
+    @Test func clientRejectsAnUnpinnedHost() async {
+        let p = connect(iPadTrusts: .some(testIdentity("impostor").publicKey))
+        #expect(await eventually { p.client.state == .ended(.authFailed) || p.client.state == .idle })
+        #expect(p.hostRecorder.snapshot.log.isEmpty)
+    }
+
+    /// A Hello replayed from another session carries a signature over other certificates.
+    @Test func replayedHelloFails() async throws {
+        let (hostSignal, clientSignal) = InMemorySignaling.pair()
+        let recorder = HostRecorder()
+        let host = HostSession(signaling: hostSignal, local: macInfo, delegate: recorder)
+        let transports = InMemoryTransport.pair(host: host.transportHandlers(),
+                                                client: TransportHandlers(signal: { _ in }, event: { _ in }))
+        clientSignal.start(onState: { _ in }, onMessage: { _ in })
+        host.start(transport: transports.host)
+        #expect(await eventually { host.state == .securing })
+        let stale = HelloTranscript(session: "an-earlier-session", client: clientSignal.identity.id, host: hostSignal.identity.id,
+                                    clientCertificate: "sha-256 old", hostCertificate: "sha-256 old", clientNonce: Data([1]))
+        let signature = try clientSignal.identity.sign(stale.helloBody, as: .hello)
+        let hello = try Envelope(seq: 1, sentAtMicroseconds: 1, body: .hello(.with {
+            $0.protocolMajor = Wire.major
+            $0.sessionNonce = Data([1])
+            $0.identitySignature = signature
+        })).encoded()
+        transports.client.send(hello, on: .control)
+        #expect(await eventually { host.state == .ended(.authFailed) || host.state == .idle })
+        #expect(recorder.snapshot.log.isEmpty)
     }
 
     @Test func pingsMeasureRoundTrip() async {

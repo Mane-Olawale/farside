@@ -3,7 +3,7 @@ PROJECT = Farside.xcodeproj
 DERIVED = .build/DerivedData
 XCB = xcodebuild -project $(PROJECT) -derivedDataPath $(DERIVED) CODE_SIGNING_ALLOWED=NO
 
-.PHONY: generate test ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 component-input build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up
+.PHONY: generate test trust-check ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 component-input build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up
 
 generate:
 	xcodegen generate
@@ -19,8 +19,13 @@ test:
 		fi; \
 	done
 
+# The apps trust pinned keys only (plan section 14). The accept-any-signer mode is for the spike
+# rigs in Tools; this fails if it ever appears in an app.
+trust-check:
+	@if grep -rn "anySignerForSpikeRigs" Apps; then echo "Apps must use pinned trust only."; exit 1; fi
+
 # What CI runs (.github/workflows/ci.yml): package tests, then both app builds.
-ci: test build-client build-host
+ci: trust-check test build-client build-host
 
 build: build-client build-host build-testpattern
 

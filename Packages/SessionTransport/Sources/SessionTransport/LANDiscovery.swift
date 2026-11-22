@@ -1,5 +1,7 @@
 import Foundation
 import Network
+import Pairing
+import Synchronization
 import WireProtocol
 
 // LAN discovery and signaling (plan section 12, on a LAN with no backend). The Mac advertises
@@ -104,8 +106,9 @@ public struct DiscoveredHost: Identifiable, Hashable, Sendable {
     }
 }
 
-/// Host side: advertises this Mac and hands each incoming signaling connection to the owner,
-/// which decides whether to accept it.
+/// Host side: advertises this Mac. Each incoming connection is checked before the owner sees it:
+/// a signed join from a paired device reaches `onConnection`, a pairing request reaches
+/// `onPairing`, and anything else is refused or dropped (plan section 14).
 public final class LANAdvertiser: @unchecked Sendable {
     public enum State: Sendable, Equatable {
         case starting
@@ -120,15 +123,21 @@ public final class LANAdvertiser: @unchecked Sendable {
     private var listener: NWListener?
     private let id: String
     private let name: String
+    private let credentials: SessionCredentials
     private let onConnection: @Sendable (SignalingConnection) -> Void
+    private let onPairing: @Sendable (PairingRequest, SignalingConnection) -> Void
     private let onState: @Sendable (State) -> Void
+    private let limiter = LockedLimiter()
 
-    public init(id: String, name: String,
+    public init(credentials: SessionCredentials, name: String,
                 onConnection: @escaping @Sendable (SignalingConnection) -> Void,
+                onPairing: @escaping @Sendable (PairingRequest, SignalingConnection) -> Void = { _, c in c.close() },
                 onState: @escaping @Sendable (State) -> Void) {
-        self.id = id
+        id = credentials.identity.id.rawValue
         self.name = name
+        self.credentials = credentials
         self.onConnection = onConnection
+        self.onPairing = onPairing
         self.onState = onState
     }
 
@@ -163,9 +172,15 @@ public final class LANAdvertiser: @unchecked Sendable {
             @unknown default: break
             }
         }
-        let onConnection = self.onConnection
+        let (onConnection, onPairing, credentials, limiter) = (self.onConnection, self.onPairing, self.credentials, self.limiter)
         listener.newConnectionHandler = { connection in
-            onConnection(SignalingConnection(connection: connection, session: nil))
+            let source = Self.source(of: connection.endpoint)
+            guard !limiter.isBlocked(source) else {
+                connection.cancel()
+                return
+            }
+            SignalingConnection(connection: connection, credentials: credentials).admit(
+                onAdmitted: onConnection, onPairing: onPairing, onFailure: { limiter.failed(source) })
         }
         listener.start(queue: queue)
         self.listener = listener
@@ -175,6 +190,29 @@ public final class LANAdvertiser: @unchecked Sendable {
         listener?.cancel()
         listener = nil
     }
+
+    /// The remote address without its port: one device opening many sockets is one source.
+    static func source(of endpoint: NWEndpoint) -> String {
+        if case .hostPort(let host, _) = endpoint { return "\(host)" }
+        return "\(endpoint)"
+    }
+}
+
+final class LockedLimiter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var limiter = FailureLimiter()
+
+    func isBlocked(_ source: String) -> Bool {
+        lock.withLock { limiter.isBlocked(source, now: Clock.unixNow) }
+    }
+
+    func failed(_ source: String) {
+        lock.withLock { limiter.failed(source, now: Clock.unixNow) }
+    }
+}
+
+enum Clock {
+    static var unixNow: Int64 { Int64(Date().timeIntervalSince1970) }
 }
 
 /// Client side: keeps an up-to-date list of the Macs on this network.
@@ -226,9 +264,14 @@ public final class LANBrowser: @unchecked Sendable {
     }
 }
 
-/// One signaling WebSocket. It stamps outgoing messages with the session id, a sequence number
-/// and a timestamp, and drops incoming ones that are oversized, malformed, for another session,
-/// or replayed.
+
+/// One signaling WebSocket (plan sections 11 and 14). Outgoing envelopes carry the session id, a
+/// sequence number, a timestamp, sender and receiver, and this device's signature. Incoming ones
+/// are dropped unless they are addressed here, signed by the expected peer's pinned key, fresh,
+/// and for this session.
+///
+/// The host side checks the first envelope before anyone else sees the connection: see
+/// `LANAdvertiser`.
 public final class SignalingConnection: @unchecked Sendable {
     public enum State: Sendable, Equatable {
         case connecting
@@ -236,75 +279,164 @@ public final class SignalingConnection: @unchecked Sendable {
         case closed(String?)
     }
 
+    public enum PairingResult: Sendable, Equatable {
+        case paired
+        case refused
+        case failed(String)
+    }
+
+    private enum Role {
+        case client
+        case host
+        case pairing(PairingInvite, PairingRequest, @Sendable (PairingResult) -> Void)
+    }
+
     private let queue = DispatchQueue(label: "farside.lan.signaling")
     private let connection: NWConnection
-    /// Set by the client when it connects; the host adopts the first one it sees.
-    private var session: String?
+    private let credentials: SessionCredentials
+    private let role: Role
+    private var verifier: EnvelopeVerifier
+    private let ids = Mutex<(session: String?, peer: DeviceID?)>((nil, nil))
     private var nextSeq: UInt64 = 1
-    private var lastReceivedSeq: UInt64 = 0
     private var onState: (@Sendable (State) -> Void)?
     private var onMessage: (@Sendable (SignalMessage) -> Void)?
     private var closed = false
-    /// The host side learns the session id from the client's join, and reports ready only then:
-    /// before it, nothing it sends could be stamped.
-    private let isHostSide: Bool
+    /// Host side: set once the first envelope passed. Messages wait here until `start`.
+    private var admitted = false
+    private var pending: [SignalMessage] = []
+    private var pairingDone = false
+    /// Keeps this connection alive while nobody else holds it: the host side until admission,
+    /// the iPad's pairing connection until the answer.
+    private var keepAlive: SignalingConnection?
+    private var admission: (onAdmitted: @Sendable (SignalingConnection) -> Void,
+                            onPairing: @Sendable (PairingRequest, SignalingConnection) -> Void,
+                            onFailure: @Sendable () -> Void)?
 
-    init(connection: NWConnection, session: String?) {
+    private init(connection: NWConnection, credentials: SessionCredentials, role: Role, session: String?, peer: DeviceID?) {
         self.connection = connection
-        self.session = session
-        isHostSide = session == nil
+        self.credentials = credentials
+        self.role = role
+        verifier = EnvelopeVerifier(credentials: credentials)
+        ids.withLock { $0 = (session, peer) }
     }
 
-    /// Client side: a new session to a Mac found by `LANBrowser`.
-    public static func connect(to endpoint: NWEndpoint) -> SignalingConnection {
-        SignalingConnection(connection: NWConnection(to: endpoint, using: LAN.parameters()), session: UUID().uuidString)
+    /// Host side, before admission.
+    convenience init(connection: NWConnection, credentials: SessionCredentials) {
+        self.init(connection: connection, credentials: credentials, role: .host, session: nil, peer: nil)
+    }
+
+    /// Client side: a new session to the paired Mac `peer`, found by `LANBrowser`.
+    public static func connect(to endpoint: NWEndpoint, credentials: SessionCredentials, peer: DeviceID) -> SignalingConnection {
+        SignalingConnection(connection: NWConnection(to: endpoint, using: LAN.parameters()), credentials: credentials,
+                            role: .client, session: UUID().uuidString, peer: peer)
     }
 
     /// Client side: a new session to a typed address (Connect by address, Phase 2). The WebSocket
     /// handshake needs a `ws://` URL endpoint here; a bare host-and-port endpoint is aborted by
     /// the WebSocket protocol before it is ready. Bonjour service endpoints work as they are.
-    public static func connect(host: String, port: UInt16) -> SignalingConnection {
-        let endpoint = LAN.endpoint(host: host, port: port)
-            ?? .hostPort(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port) ?? .any)
-        return connect(to: endpoint)
+    public static func connect(host: String, port: UInt16, credentials: SessionCredentials, peer: DeviceID) -> SignalingConnection {
+        connect(to: endpoint(host: host, port: port), credentials: credentials, peer: peer)
     }
+
+    static func endpoint(host: String, port: UInt16) -> NWEndpoint {
+        LAN.endpoint(host: host, port: port)
+            ?? .hostPort(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port) ?? .any)
+    }
+
+    /// iPad side of pairing (plan section 14): sends the request to the Mac from the QR code and
+    /// reports whether the person at the Mac allowed it. The caller times out and closes.
+    @discardableResult
+    public static func pair(to endpoint: NWEndpoint, credentials: SessionCredentials, invite: PairingInvite,
+                            request: PairingRequest, completion: @escaping @Sendable (PairingResult) -> Void) -> SignalingConnection {
+        let connection = SignalingConnection(connection: NWConnection(to: endpoint, using: LAN.parameters()),
+                                             credentials: credentials, role: .pairing(invite, request, completion),
+                                             session: UUID().uuidString, peer: invite.id)
+        connection.queue.async {
+            connection.keepAlive = connection
+            connection.open()
+        }
+        return connection
+    }
+
+    /// The device at the other end: the Mac for the iPad, the admitted iPad for the Mac.
+    public var peer: DeviceID? { ids.withLock { $0.peer } }
+    public var session: String? { ids.withLock { $0.session } }
+    public var identity: LocalIdentity { credentials.identity }
+    public var pinnedPeerKey: PublicKey? { peer.flatMap(credentials.pinnedKey(for:)) }
 
     /// For logs. Marked private by callers.
     public var remoteDescription: String { "\(connection.endpoint)" }
+
+    // MARK: Host admission
+
+    func admit(onAdmitted: @escaping @Sendable (SignalingConnection) -> Void,
+               onPairing: @escaping @Sendable (PairingRequest, SignalingConnection) -> Void,
+               onFailure: @escaping @Sendable () -> Void) {
+        queue.async { [self] in
+            admission = (onAdmitted, onPairing, onFailure)
+            keepAlive = self
+            open()
+        }
+    }
+
+    /// Host side: the answer to a pairing request. Closes the connection once it is sent.
+    public func replyToPairing(allowed: Bool) {
+        send(allowed ? SignalMessage(kind: .paired) : .reject(.notPaired), thenClose: true)
+    }
+
+    // MARK: Session use
 
     public func start(onState: @escaping @Sendable (State) -> Void, onMessage: @escaping @Sendable (SignalMessage) -> Void) {
         queue.async { [self] in
             self.onState = onState
             self.onMessage = onMessage
-            connection.stateUpdateHandler = { [weak self] state in
-                // Nothing is reported after closed, not even a late waiting.
-                guard let self, !self.closed else { return }
-                switch state {
-                case .ready:
-                    if !self.isHostSide {
-                        self.send(.init(kind: .join))
-                        onState(.ready)
-                    }
-                case .failed(let error): self.finish("\(error)")
-                case .cancelled: self.finish(nil)
-                case .waiting: onState(.connecting)
-                default: break
+            switch role {
+            case .host:
+                if closed {
+                    onState(.closed(nil))
+                } else if admitted {
+                    onState(.ready)
+                    let queued = pending
+                    pending = []
+                    queued.forEach(onMessage)
                 }
+            case .client:
+                open()
+            case .pairing:
+                break
             }
-            connection.start(queue: queue)
-            receive()
         }
     }
 
     public func send(_ message: SignalMessage) {
+        send(message, thenClose: false)
+    }
+
+    /// Sends one last message and closes once the network has taken it.
+    public func sendAndClose(_ message: SignalMessage) {
+        send(message, thenClose: true)
+    }
+
+    private func send(_ message: SignalMessage, thenClose: Bool) {
         queue.async { [self] in
-            guard !closed, let session else { return }
-            let envelope = SignalEnvelope(message: message, session: session, seq: nextSeq, ts: Int64(Date().timeIntervalSince1970))
+            let (session, peer) = ids.withLock { ($0.session, $0.peer) }
+            guard !closed, let session, let peer else {
+                if thenClose { connection.cancel() }
+                return
+            }
+            var envelope = SignalEnvelope(message: message, session: session, from: credentials.identity.id.rawValue,
+                                          to: peer.rawValue, seq: nextSeq, ts: Clock.unixNow)
             nextSeq += 1
-            guard let data = try? envelope.encoded() else { return }
+            guard (try? envelope.sign(with: credentials.identity)) != nil, let data = try? envelope.encoded() else {
+                if thenClose { connection.cancel() }
+                return
+            }
             let metadata = NWProtocolWebSocket.Metadata(opcode: .text)
             let context = NWConnection.ContentContext(identifier: "signal", metadata: [metadata])
-            connection.send(content: data, contentContext: context, isComplete: true, completion: .contentProcessed { _ in })
+            let connection = connection
+            connection.send(content: data, contentContext: context, isComplete: true, completion: .contentProcessed { _ in
+                if thenClose { connection.cancel() }
+            })
         }
     }
 
@@ -313,6 +445,33 @@ public final class SignalingConnection: @unchecked Sendable {
         queue.async { [self] in
             connection.cancel()
         }
+    }
+
+    // MARK: Internals, on the queue
+
+    private func open() {
+        connection.stateUpdateHandler = { [weak self] state in
+            // Nothing is reported after closed, not even a late waiting.
+            guard let self, !self.closed else { return }
+            switch state {
+            case .ready:
+                switch self.role {
+                case .client:
+                    self.send(.init(kind: .join))
+                    self.onState?(.ready)
+                case .pairing(_, let request, _):
+                    self.send(.pair(request))
+                case .host:
+                    break
+                }
+            case .failed(let error): self.finish("\(error)")
+            case .cancelled: self.finish(nil)
+            case .waiting: self.onState?(.connecting)
+            default: break
+            }
+        }
+        connection.start(queue: queue)
+        receive()
     }
 
     private func receive() {
@@ -328,23 +487,78 @@ public final class SignalingConnection: @unchecked Sendable {
     }
 
     private func accept(_ data: Data) {
-        guard let envelope = try? SignalEnvelope.decoded(data) else { return }
-        var adopted = false
-        if session == nil {
-            session = envelope.session
-            adopted = true
+        guard !closed, let envelope = try? SignalEnvelope.decoded(data) else { return }
+        let now = Clock.unixNow
+        switch role {
+        case .host where !admitted:
+            firstEnvelope(envelope, now: now)
+
+        case .pairing(let invite, _, let completion):
+            guard envelope.session == session, (try? verifier.checkPairingReply(envelope, invite: invite, now: now)) != nil else { return }
+            pairingDone = true
+            completion(envelope.type == .paired ? .paired : .refused)
+            finish(nil)
+
+        case .host, .client:
+            guard envelope.session == session else { return }
+            do {
+                _ = try verifier.check(envelope, expected: peer, now: now)
+            } catch {
+                return  // Not from the peer, or replayed: dropped (plan section 11).
+            }
+            if envelope.type == .join { return }
+            // The host's handlers arrive with `start`, after admission.
+            if let onMessage { onMessage(envelope.message) } else { pending.append(envelope.message) }
         }
-        guard envelope.session == session, envelope.seq > lastReceivedSeq else { return }
-        lastReceivedSeq = envelope.seq
-        if adopted, !closed { onState?(.ready) }
-        if envelope.type == .join { return }
-        onMessage?(envelope.message)
+    }
+
+    /// Host side: the first envelope decides what this connection is.
+    private func firstEnvelope(_ envelope: SignalEnvelope, now: Int64) {
+        guard let admission else { return }
+        switch envelope.type {
+        case .join:
+            do {
+                let sender = try verifier.check(envelope, expected: nil, now: now)
+                ids.withLock { $0 = (envelope.session, sender) }
+                admitted = true
+                self.admission = nil
+                keepAlive = nil
+                admission.onAdmitted(self)
+            } catch .notPaired {
+                // Signed by a device this Mac does not know: tell it to pair, then hang up.
+                ids.withLock { $0 = (envelope.session, DeviceID(rawValue: envelope.from)) }
+                admission.onFailure()
+                send(.reject(.notPaired), thenClose: true)
+            } catch {
+                admission.onFailure()
+                finish("refused: \(error)")
+            }
+        case .pair:
+            do {
+                let request = try verifier.checkPairing(envelope, now: now)
+                ids.withLock { $0 = (envelope.session, request.id) }
+                self.admission = nil
+                keepAlive = nil
+                admission.onPairing(request, self)
+            } catch {
+                admission.onFailure()
+                finish("refused pairing: \(error)")
+            }
+        default:
+            admission.onFailure()
+            finish("refused: \(envelope.type)")
+        }
     }
 
     private func finish(_ reason: String?) {
         guard !closed else { return }
         closed = true
+        keepAlive = nil
         connection.cancel()
+        if case .pairing(_, _, let completion) = role, !pairingDone {
+            pairingDone = true
+            completion(.failed(reason ?? "closed"))
+        }
         onState?(.closed(reason))
     }
 }

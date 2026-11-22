@@ -19,12 +19,14 @@ let package = Package(
     dependencies: [
         .package(path: "../WireProtocol"),
         .package(path: "../MediaCore"),
+        .package(path: "../Pairing"),
+        .package(path: "../SecureStore"),
         // Pinned exactly; the binary target's SHA-256 is fixed in that release's manifest
         // (dd26ba28fb9c8dbc82f4be3085e8d112a4e2a4e654e1786a9977a748c24c4912). ADR 0003.
         .package(url: "https://github.com/stasel/WebRTC.git", exact: "158.0.0"),
     ],
     targets: [
-        .target(name: "SessionTransport", dependencies: ["WireProtocol", "MediaCore"]),
+        .target(name: "SessionTransport", dependencies: ["WireProtocol", "MediaCore", "Pairing"]),
         .target(name: "SessionTransportWebRTC", dependencies: [
             "SessionTransport",
             "WireProtocol",
@@ -35,7 +37,7 @@ let package = Package(
         .target(name: "WebRTCAudioShim", dependencies: [
             .product(name: "WebRTC", package: "WebRTC"),
         ]),
-        .testTarget(name: "SessionTransportTests", dependencies: ["SessionTransport"]),
+        .testTarget(name: "SessionTransportTests", dependencies: ["SessionTransport", "Pairing", "SecureStore"]),
         .testTarget(name: "SessionTransportWebRTCTests", dependencies: ["SessionTransportWebRTC", "SessionTransport"]),
     ]
 )
