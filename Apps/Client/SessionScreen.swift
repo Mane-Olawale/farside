@@ -1,21 +1,21 @@
 import SessionTransport
 import SwiftUI
 
-/// The session screen (plan section 7): the Mac full screen, a small control pill, the stats
-/// overlay, and connection messages. Phase 2 replaces the surface with the input-capturing
-/// view controller and adds the floating toolbar.
+/// The session screen (plan section 7): the Mac full screen behind the input-capturing view
+/// controller, a small control pill, the stats overlay, and connection messages.
 struct SessionScreen: View {
     let connection: ConnectionModel
     let close: () -> Void
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            VideoSurface(view: connection.surface)
+            SessionInputSurface(connection: connection)
                 .ignoresSafeArea()
 
             if connection.showsStats && connection.state == .streaming {
                 StatsOverlay(connection: connection)
                     .padding(12)
+                    .allowsHitTesting(false)
             }
 
             if connection.state != .streaming {
@@ -23,21 +23,17 @@ struct SessionScreen: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            ControlPill(connection: connection, close: close)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .padding(12)
+            if connection.showsToolbar || connection.state != .streaming {
+                ControlPill(connection: connection, close: close)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(12)
+            }
         }
         .background(.black)
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
         .defersSystemGestures(on: .all)
     }
-}
-
-private struct VideoSurface: UIViewRepresentable {
-    let view: VideoSurfaceView
-    func makeUIView(context: Context) -> VideoSurfaceView { view }
-    func updateUIView(_ uiView: VideoSurfaceView, context: Context) {}
 }
 
 private struct ControlPill: View {

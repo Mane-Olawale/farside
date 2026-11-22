@@ -45,6 +45,10 @@ final class ConnectionModel: Identifiable {
     /// From tapping Connect to the first frame on the display (Phase 1 exit criterion: 2 s).
     private(set) var timeToFirstFrame: Double?
     var showsStats = true
+    /// The floating toolbar (plan section 7); a three-finger tap shows or hides it.
+    var showsToolbar = true
+    /// Runs on the main thread when the Mac applies a new stream configuration.
+    @ObservationIgnored var onAppliedChange: (() -> Void)?
 
     /// The video surface. Lives as long as this connection.
     @ObservationIgnored let surface = VideoSurfaceView()
@@ -99,6 +103,20 @@ final class ConnectionModel: Identifiable {
         startStats()
     }
 
+    // MARK: Input and drawing, for the session view controller
+
+    /// Sends input to the Mac. Returns the envelope sequence number, or nil when not connected.
+    @discardableResult
+    func sendInput(_ body: Envelope.OneOf_Body) -> UInt32? {
+        guard state == .streaming, let session else { return nil }
+        return session.sendInput(body)
+    }
+
+    /// Where the video and cursor are drawn from the next refresh on.
+    func setScene(_ scene: RenderScene) {
+        presenter?.setScene(scene)
+    }
+
     func disconnect() {
         if state.isActive { session?.end(.userEnded) }
         statsTask?.cancel()
@@ -126,6 +144,7 @@ final class ConnectionModel: Identifiable {
     func appliedChanged(_ applied: Farside_V1_StreamConfigApplied) {
         self.applied = applied
         cursor?.setDisplay(applied.displayID)
+        onAppliedChange?()
     }
 
     func roundTrip(_ seconds: Double) {

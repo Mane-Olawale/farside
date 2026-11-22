@@ -80,6 +80,7 @@
 		E124F037501E1E5C497446F3 /* SessionTransportWebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = EE3372A99C38856B4479DF59 /* SessionTransportWebRTC */; };
 		E41B9D16E21A61F8914623C3 /* ProbeMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98F21FDD1D45C214B111F91 /* ProbeMessages.swift */; };
 		E6A4BB7E1C01D1261BC3BE66 /* HostCapture in Frameworks */ = {isa = PBXBuildFile; productRef = 52F1BDE67436458A59F29928 /* HostCapture */; };
+		E8228E7A86D64DC92B5A7397 /* SessionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 395A52FEB6A32EA90B1184C7 /* SessionViewController.swift */; };
 		E8E52BAEB122247ABA85AE1F /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 94B301C41134980121F03E25 /* Telemetry */; };
 		E9A46775198433B62D090EDB /* ConnectionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03136313D352ABEA4B336614 /* ConnectionModel.swift */; };
 		ED32CEF3B8690FF70E052743 /* HostMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = 959B17A4BE9EF2D80D41DF9A /* HostMedia.swift */; };
@@ -103,6 +104,7 @@
 		1EC3EB628E049AB5B0F550FC /* BackendClient */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BackendClient; path = Packages/BackendClient; sourceTree = SOURCE_ROOT; };
 		243B4BAB933AC114C841C747 /* HostCapture */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HostCapture; path = Packages/HostCapture; sourceTree = SOURCE_ROOT; };
 		27F010CCC84FF366C4198BB7 /* InputProbeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputProbeApp.swift; sourceTree = "<group>"; };
+		395A52FEB6A32EA90B1184C7 /* SessionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionViewController.swift; sourceTree = "<group>"; };
 		3968D6C4E5DDCE05E626A946 /* CodeReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeReader.swift; sourceTree = "<group>"; };
 		39F09E182EE475D109196A5E /* LockProbe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LockProbe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B5B10EB67F62A2F10ED0239 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -329,6 +331,7 @@
 				D871B555B2BD9F543640702B /* DeviceListModel.swift */,
 				A21D5F5E79F14EE223EA7ACC /* FarsideApp.swift */,
 				BD16B6752507F70D5A529064 /* SessionScreen.swift */,
+				395A52FEB6A32EA90B1184C7 /* SessionViewController.swift */,
 			);
 			path = Client;
 			sourceTree = "<group>";
@@ -818,6 +821,7 @@
 				6F631857D8289CFC639894A4 /* DeviceListModel.swift in Sources */,
 				23863E09DADA8F4581AC7608 /* FarsideApp.swift in Sources */,
 				F83B7E00227A0C5913D25F76 /* SessionScreen.swift in Sources */,
+				E8228E7A86D64DC92B5A7397 /* SessionViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
