@@ -11,6 +11,8 @@ final class InMemorySignaling: SignalingChannel, @unchecked Sendable {
     private var onMessage: (@Sendable (SignalMessage) -> Void)?
     private var closed = false
     private(set) var sent: [SignalMessage] = []
+    /// Delays this end's ready, to force orderings real sockets only sometimes produce.
+    var readyDelay: Double = 0
 
     static func pair() -> (InMemorySignaling, InMemorySignaling) {
         let a = InMemorySignaling(), b = InMemorySignaling()
@@ -24,7 +26,7 @@ final class InMemorySignaling: SignalingChannel, @unchecked Sendable {
             self.onState = onState
             self.onMessage = onMessage
         }
-        DispatchQueue.global().async { onState(.ready) }
+        DispatchQueue.global().asyncAfter(deadline: .now() + readyDelay) { onState(.ready) }
     }
 
     func send(_ message: SignalMessage) {
@@ -122,8 +124,9 @@ func eventually(_ seconds: Double = 3, _ condition: () -> Bool) async -> Bool {
         let signaling: (host: InMemorySignaling, client: InMemorySignaling)
     }
 
-    func connect(timeouts: SessionTimeouts = .standard) -> Pair {
+    func connect(timeouts: SessionTimeouts = .standard, clientReadyDelay: Double = 0) -> Pair {
         let (hostSignal, clientSignal) = InMemorySignaling.pair()
+        clientSignal.readyDelay = clientReadyDelay
         let hostRecorder = HostRecorder(), clientRecorder = ClientRecorder()
         let host = HostSession(signaling: hostSignal, local: macInfo, delegate: hostRecorder, timeouts: timeouts)
         let client = ClientSession(signaling: clientSignal, local: iPadInfo, delegate: clientRecorder, timeouts: timeouts)
@@ -144,6 +147,13 @@ func eventually(_ seconds: Double = 3, _ condition: () -> Bool) async -> Bool {
         #expect(client.applied?.width == 2752)
         #expect(client.host?.name == "Test Mac")
         #expect(client.states.suffix(1) == [.streaming])
+    }
+
+    /// The transport connects before the client's own signaling reports ready. The client must
+    /// still notice the path once it starts negotiating.
+    @Test func pathUpBeforeClientSignalingIsReady() async {
+        let p = connect(clientReadyDelay: 0.2)
+        #expect(await eventually { p.host.state == .streaming && p.client.state == .streaming })
     }
 
     @Test func clientEndingSendsByeAndHostStopsCapture() async {

@@ -116,6 +116,9 @@ public class SessionBase: @unchecked Sendable {
             log("session \(before) -> \(machine.state) on \(event)")
             stateChanged(machine.state)
             stateHandler?(machine.state)
+            // The path may have come up while this side was still ringing, when pathUp is
+            // ignored. Look again now that it counts.
+            if machine.state == .negotiating { checkPathUp() }
         }
     }
 
