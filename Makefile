@@ -3,7 +3,7 @@ PROJECT = Farside.xcodeproj
 DERIVED = .build/DerivedData
 XCB = xcodebuild -project $(PROJECT) -derivedDataPath $(DERIVED) CODE_SIGNING_ALLOWED=NO
 
-.PHONY: generate test ci build build-client build-host build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto hooks server-up
+.PHONY: generate test ci build build-client build-host build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up
 
 generate:
 	xcodegen generate
@@ -84,15 +84,30 @@ build-permprobe: generate
 		-destination 'generic/platform=macOS' -allowProvisioningUpdates build
 
 # Regenerates Swift from Packages/WireProtocol/Proto. Generated code is committed (plan section 5).
+# protoc-gen-swift is built from the swift-protobuf version pinned in WireProtocol's manifest, so
+# the generator always matches the runtime library. The plugin path is explicit, so a copy on PATH
+# (for example from Homebrew) is never used.
+PROTOC ?= /usr/local/bin/protoc
+PROTO_DIR = Packages/WireProtocol/Proto
+PROTO_OUT = Packages/WireProtocol/Sources/WireProtocol/Generated
+
 proto:
-	@if ! ls Packages/WireProtocol/Proto/*.proto >/dev/null 2>&1; then \
-		echo "No .proto files yet. They arrive in Phase 1."; exit 0; \
-	fi; \
-	mkdir -p Packages/WireProtocol/Sources/WireProtocol/Generated; \
-	protoc --proto_path=Packages/WireProtocol/Proto \
+	swift build -c release --package-path Packages/WireProtocol --product protoc-gen-swift
+	mkdir -p $(PROTO_OUT)
+	rm -f $(PROTO_OUT)/*.pb.swift
+	$(PROTOC) --plugin=protoc-gen-swift="$$(swift build -c release --package-path Packages/WireProtocol --show-bin-path)/protoc-gen-swift" \
+		--proto_path=$(PROTO_DIR) \
 		--swift_opt=Visibility=Public \
-		--swift_out=Packages/WireProtocol/Sources/WireProtocol/Generated \
-		Packages/WireProtocol/Proto/*.proto
+		--swift_out=$(PROTO_OUT) \
+		$(PROTO_DIR)/*.proto
+
+# CI: fails if the committed generated code differs from what `make proto` produces.
+proto-check: proto
+	@if [ -n "$$(git status --porcelain -- $(PROTO_OUT))" ]; then \
+		echo "Generated protocol code is out of date. Run make proto and commit the result."; \
+		git status --porcelain -- $(PROTO_OUT); \
+		exit 1; \
+	fi
 
 hooks:
 	mkdir -p .git/hooks
