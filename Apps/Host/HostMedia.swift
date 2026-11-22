@@ -71,23 +71,38 @@ final class HostMedia: HostSessionDelegate, @unchecked Sendable {
     }
 
     func hostSessionStartMedia(_ applied: Farside_V1_StreamConfigApplied) {
-        let (capture, started) = lock.withLock { () -> (DisplayCapture, Int) in
-            self.generation += 1
+        let settings = CaptureSettings(width: Int(applied.width), height: Int(applied.height), framesPerSecond: Int(applied.frameRate))
+        let started = lock.withLock { () -> Int in
+            generation += 1
+            restarts = []
+            return generation
+        }
+        startCapture(displayID: CGDirectDisplayID(applied.displayID), settings: settings, generation: started)
+    }
+
+    /// Restarts in the last minute. ScreenCaptureKit stops every stream on the Mac by itself at
+    /// times, for example when macOS purges caches because the disk is nearly full (-3821, "stopped
+    /// by the system"). The session survives that by starting capture again; only a stop that keeps
+    /// coming back ends it.
+    private var restarts: [ContinuousClock.Instant] = []
+    private static let maxRestartsPerMinute = 3
+
+    private func startCapture(displayID: CGDirectDisplayID, settings: CaptureSettings, generation started: Int) {
+        let capture = lock.withLock { () -> DisplayCapture? in
+            guard generation == started else { return nil }
             let transport = self.transport
-            let onProblem = self.onProblem
             let capture = DisplayCapture(
                 onFrame: { frame in
                     transport?.push(frame.pixels, timestampNs: Int64(HostClock.seconds(frame.displayTicks) * 1_000_000_000))
                 },
-                onStop: { error in
-                    guard let error else { return }
-                    onProblem(CaptureError.isPermissionDenied(error) ? .screenRecordingDenied : .captureFailed("\(error)"))
+                onStop: { [weak self] error in
+                    guard let self, let error else { return }
+                    self.captureStopped(error, displayID: displayID, settings: settings, generation: started)
                 })
             self.capture = capture
-            return (capture, self.generation)
+            return capture
         }
-        let settings = CaptureSettings(width: Int(applied.width), height: Int(applied.height), framesPerSecond: Int(applied.frameRate))
-        let displayID = CGDirectDisplayID(applied.displayID)
+        guard let capture else { return }
         Task { [self] in
             do {
                 try await capture.start(displayID: displayID, settings: settings)
@@ -99,6 +114,22 @@ final class HostMedia: HostSessionDelegate, @unchecked Sendable {
                 onProblem(CaptureError.isPermissionDenied(error) ? .screenRecordingDenied : .captureFailed("\(error)"))
             }
         }
+    }
+
+    private func captureStopped(_ error: Error, displayID: CGDirectDisplayID, settings: CaptureSettings, generation started: Int) {
+        if CaptureError.isPermissionDenied(error) { return onProblem(.screenRecordingDenied) }
+        let now = ContinuousClock.now
+        let retry = lock.withLock { () -> Bool in
+            guard generation == started else { return false }
+            restarts = restarts.filter { now - $0 < .seconds(60) } + [now]
+            return restarts.count <= Self.maxRestartsPerMinute
+        }
+        guard retry else {
+            if lock.withLock({ generation == started }) { onProblem(.captureFailed("\(error)")) }
+            return
+        }
+        log.error("capture stopped by the system, restarting: \(String(describing: error), privacy: .public)")
+        startCapture(displayID: displayID, settings: settings, generation: started)
     }
 
     func hostSessionStopMedia() {
