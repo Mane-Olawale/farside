@@ -133,6 +133,10 @@ public nonisolated enum Farside_V1_EndReason: SwiftProtobuf.Enum, Swift.CaseIter
   case hostSleeping // = 9
   case networkLost // = 10
   case internalError // = 11
+
+  /// Another device is already in a session with this Mac (plan section 7, error messages).
+  /// Take over arrives in Phase 4.
+  case busy // = 12
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -153,6 +157,7 @@ public nonisolated enum Farside_V1_EndReason: SwiftProtobuf.Enum, Swift.CaseIter
     case 9: self = .hostSleeping
     case 10: self = .networkLost
     case 11: self = .internalError
+    case 12: self = .busy
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -171,6 +176,7 @@ public nonisolated enum Farside_V1_EndReason: SwiftProtobuf.Enum, Swift.CaseIter
     case .hostSleeping: return 9
     case .networkLost: return 10
     case .internalError: return 11
+    case .busy: return 12
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -189,6 +195,7 @@ public nonisolated enum Farside_V1_EndReason: SwiftProtobuf.Enum, Swift.CaseIter
     .hostSleeping,
     .networkLost,
     .internalError,
+    .busy,
   ]
 
 }
@@ -649,7 +656,7 @@ nonisolated extension Farside_V1_QualityPreference: SwiftProtobuf._ProtoNameProv
 }
 
 nonisolated extension Farside_V1_EndReason: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0END_REASON_UNSPECIFIED\0\u{1}END_REASON_USER_ENDED\0\u{1}END_REASON_HOST_ENDED\0\u{1}END_REASON_TAKEN_OVER\0\u{1}END_REASON_RING_TIMEOUT\0\u{1}END_REASON_PATH_TIMEOUT\0\u{1}END_REASON_AUTH_FAILED\0\u{1}END_REASON_VERSION_MISMATCH\0\u{1}END_REASON_PERMISSION_MISSING\0\u{1}END_REASON_HOST_SLEEPING\0\u{1}END_REASON_NETWORK_LOST\0\u{1}END_REASON_INTERNAL_ERROR\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0END_REASON_UNSPECIFIED\0\u{1}END_REASON_USER_ENDED\0\u{1}END_REASON_HOST_ENDED\0\u{1}END_REASON_TAKEN_OVER\0\u{1}END_REASON_RING_TIMEOUT\0\u{1}END_REASON_PATH_TIMEOUT\0\u{1}END_REASON_AUTH_FAILED\0\u{1}END_REASON_VERSION_MISMATCH\0\u{1}END_REASON_PERMISSION_MISSING\0\u{1}END_REASON_HOST_SLEEPING\0\u{1}END_REASON_NETWORK_LOST\0\u{1}END_REASON_INTERNAL_ERROR\0\u{1}END_REASON_BUSY\0")
 }
 
 nonisolated extension Farside_V1_Envelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

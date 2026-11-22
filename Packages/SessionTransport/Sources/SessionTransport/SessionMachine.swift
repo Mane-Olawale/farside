@@ -20,6 +20,8 @@ public enum SessionEndReason: String, Sendable, Equatable, CaseIterable {
     case hostSleeping = "host_sleeping"
     case networkLost = "network_lost"
     case internalError = "internal_error"
+    /// Another device is in a session with this Mac.
+    case busy = "busy"
 }
 
 public enum SessionState: Sendable, Equatable {
@@ -248,6 +250,7 @@ extension SessionEndReason {
         case .permissionMissing: .permissionMissing
         case .hostSleeping: .hostSleeping
         case .networkLost: .networkLost
+        case .busy: .busy
         case .internalError, .unspecified, .UNRECOGNIZED: .internalError
         }
     }
@@ -265,6 +268,7 @@ extension SessionEndReason {
         case .hostSleeping: .hostSleeping
         case .networkLost: .networkLost
         case .internalError: .internalError
+        case .busy: .busy
         }
     }
 }
