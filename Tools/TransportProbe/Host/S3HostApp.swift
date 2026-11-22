@@ -4,6 +4,8 @@ import ClientVideo
 import HostCapture
 import MediaCore
 import os
+import Pairing
+import SecureStore
 import SessionTransport
 import SessionTransportWebRTC
 import Synchronization
@@ -244,8 +246,10 @@ final class S3HostApp: NSObject, NSApplicationDelegate {
                         Task { @MainActor in self?.handle(message, at: HostClock.now()) }
                     }))
             self.host = host
+            // Spike rig: a throwaway identity, and any signer is accepted. The apps pair instead.
+            let identity = try! LocalIdentity.loadOrCreate(in: MemorySecretStore(), name: "Farside S3", allowEnclave: false)
             let advertiser = LANAdvertiser(
-                id: "s3host", name: "Farside S3",
+                credentials: SessionCredentials(identity: identity, trust: .anySignerForSpikeRigs), name: "Farside S3",
                 onConnection: { [weak self] connection in
                     Task { @MainActor in
                         guard let self, self.signaling == nil else { return connection.close() }

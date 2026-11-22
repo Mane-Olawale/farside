@@ -4,6 +4,7 @@ import Foundation
 import MediaCore
 import Observation
 import os
+import Pairing
 import QuartzCore
 import SessionTransport
 import SessionTransportWebRTC
@@ -38,6 +39,9 @@ struct StatsSnapshot: Equatable {
 final class ConnectionModel: Identifiable {
     let id = UUID()
     let host: DiscoveredHost
+    /// The paired Mac this connection must reach: its pinned key is checked at every step.
+    let peer: PairedPeer
+    @ObservationIgnored private let credentials: SessionCredentials
 
     private(set) var state: SessionState = .idle
     private(set) var hostInfo: DeviceInfo?
@@ -71,8 +75,10 @@ final class ConnectionModel: Identifiable {
     @ObservationIgnored private var connectStarted: CFTimeInterval = 0
     @ObservationIgnored private let log = Logger(subsystem: "app.farside.client", category: "session")
 
-    init(host: DiscoveredHost) {
+    init(host: DiscoveredHost, peer: PairedPeer, credentials: SessionCredentials) {
         self.host = host
+        self.peer = peer
+        self.credentials = credentials
     }
 
     func start() {
@@ -90,7 +96,7 @@ final class ConnectionModel: Identifiable {
         let link = ClientLink(model: self)
         link.cursor.withLock { $0 = cursor }
         let log = self.log
-        let signaling = SignalingConnection.connect(to: host.endpoint)
+        let signaling = SignalingConnection.connect(to: host.endpoint, credentials: credentials, peer: peer.id)
         let session = ClientSession(signaling: signaling, local: Self.deviceInfo(), delegate: link,
                                     log: { text in log.info("\(text, privacy: .public)") })
         let firstFrame = FirstFrameClock(start: connectStarted) { [weak self] seconds in

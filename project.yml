@@ -63,6 +63,7 @@ targets:
         product: SessionTransportWebRTC
       - package: BackendClient
       - package: Pairing
+      - package: SecureStore
       - package: Telemetry
     settings:
       base:
@@ -113,7 +114,15 @@ targets:
         product: SessionTransportWebRTC
       - package: BackendClient
       - package: Pairing
+      - package: SecureStore
       - package: Telemetry
+    # The data protection keychain holds the device key handle and the pinned peers (plan
+    # section 14). On macOS it needs a keychain access group.
+    entitlements:
+      path: Apps/Host/Host.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)
     settings:
       base:
         PRODUCT_NAME: Farside Host
@@ -222,6 +231,8 @@ targets:
     dependencies:
       - package: HostCapture
       - package: ClientVideo
+      - package: Pairing
+      - package: SecureStore
       - package: SessionTransport
         product: SessionTransport
       - package: SessionTransport
@@ -254,6 +265,8 @@ targets:
       - path: Tools/TransportProbe/Shared
     dependencies:
       - package: ClientVideo
+      - package: Pairing
+      - package: SecureStore
       - package: SessionTransport
         product: SessionTransport
       - package: SessionTransport

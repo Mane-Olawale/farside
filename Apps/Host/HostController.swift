@@ -5,6 +5,7 @@ import HostInput
 import MediaCore
 import Observation
 import os
+import Pairing
 import SessionTransport
 import SessionTransportWebRTC
 
@@ -49,6 +50,8 @@ final class HostController {
     private(set) var localNetwork: LocalNetworkStatus = .unconfirmed
     private(set) var sessionState: SessionState = .idle
     private(set) var clientName: String?
+    /// The paired device in the current session.
+    @ObservationIgnored private(set) var clientID: DeviceID?
     /// AirDrop and Universal Control, which stall the stream over Wi-Fi when on.
     private(set) var peerToPeer = PeerToPeerWiFi.off
     /// The user asked for access this run; a restart is what applies it.
@@ -68,16 +71,37 @@ final class HostController {
     @ObservationIgnored private var activity: NSObjectProtocol?
     @ObservationIgnored private var statsTask: Task<Void, Never>?
     /// Changes whenever the menu should be rebuilt.
-    @ObservationIgnored var onChange: (() -> Void)?
+    @ObservationIgnored var onChange: (() -> Void)? {
+        didSet { pairing?.onChange = onChange }
+    }
+    /// This Mac's identity and paired devices. Nil only if the keychain refused, in which case
+    /// nothing can connect.
+    @ObservationIgnored private(set) var pairing: HostPairing?
 
     var isInSession: Bool { sessionState.isActive }
 
     func start() {
         let log = self.log
+        let pairing: HostPairing
+        do {
+            pairing = try HostPairing()
+        } catch {
+            log.error("identity unavailable: \(String(describing: error), privacy: .public)")
+            reachability = .notReachable("This Mac's identity key is unavailable")
+            return
+        }
+        pairing.onChange = onChange
+        self.pairing = pairing
         let advertiser = LANAdvertiser(
-            id: HostIdentity.deviceID, name: HostIdentity.name,
+            credentials: pairing.credentials, name: HostIdentity.name,
             onConnection: { [weak self] connection in
                 Task { @MainActor in self?.incoming(connection) }
+            },
+            onPairing: { [weak self] request, connection in
+                Task { @MainActor in
+                    guard let pairing = self?.pairing else { return connection.replyToPairing(allowed: false) }
+                    pairing.handle(request, from: connection)
+                }
             },
             onState: { [weak self] state in
                 log.info("advertiser \(String(describing: state), privacy: .public)")
@@ -209,14 +233,12 @@ final class HostController {
         if let session, session.state.isActive {
             log.info("busy: refusing a second connection")
             connection.start(onState: { state in
-                if state == .ready {
-                    connection.send(.reject(.busy))
-                    connection.close()
-                }
+                if state == .ready { connection.sendAndClose(.reject(.busy)) }
             }, onMessage: { _ in })
             return
         }
 
+        clientID = connection.peer
         let input = HostInputHandler(onAccessMissing: { [weak self] in
             Task { @MainActor in self?.refreshAccessibility() }
         })

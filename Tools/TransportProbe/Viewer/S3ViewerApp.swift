@@ -1,6 +1,8 @@
 import ClientVideo
 import MediaCore
 import os
+import Pairing
+import SecureStore
 import SessionTransport
 import SessionTransportWebRTC
 import Synchronization
@@ -93,7 +95,11 @@ final class ViewerController: UIViewController {
 
     private func connect(to host: DiscoveredHost) {
         guard signaling == nil else { return }
-        let connection = SignalingConnection.connect(to: host.endpoint)
+        // Spike rig: a throwaway identity, and any signer is accepted. The apps pair instead.
+        guard let peer = DeviceID(rawValue: host.id),
+              let identity = try? LocalIdentity.loadOrCreate(in: MemorySecretStore(), name: "S3 viewer", allowEnclave: false) else { return }
+        let connection = SignalingConnection.connect(
+            to: host.endpoint, credentials: SessionCredentials(identity: identity, trust: .anySignerForSpikeRigs), peer: peer)
         connection.start(
             onState: { [weak self] state in
                 Task { @MainActor in

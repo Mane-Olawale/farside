@@ -1,6 +1,8 @@
 import Foundation
+import Network
 import Observation
 import os
+import Pairing
 import SessionTransport
 
 /// The Macs on this network (plan section 7, Devices screen). Phase 3 adds the account's Macs.
@@ -18,6 +20,8 @@ final class DeviceListModel {
     private(set) var state: BrowseState = .starting
     /// The session on screen, if any.
     var connection: ConnectionModel?
+    /// This iPad's identity and paired Macs. Nil only if the keychain refused.
+    let pairing: ClientPairing? = try? ClientPairing()
 
     @ObservationIgnored private var browser: LANBrowser?
     @ObservationIgnored private let log = Logger(subsystem: "app.farside.client", category: "discovery")
@@ -47,11 +51,28 @@ final class DeviceListModel {
         browser = nil
     }
 
-    func connect(to host: DiscoveredHost) {
-        guard connection == nil else { return }
-        let connection = ConnectionModel(host: host)
+    /// Connects to a paired Mac, found on this network or at a typed address.
+    func connect(to host: DiscoveredHost, as peer: PairedPeer) {
+        guard connection == nil, let pairing else { return }
+        let connection = ConnectionModel(host: host, peer: peer, credentials: pairing.credentials)
         self.connection = connection
         connection.start()
+    }
+
+    /// Paired Macs, with where each was found on this network, if it was.
+    var pairedHosts: [(peer: PairedPeer, host: DiscoveredHost?)] {
+        (pairing?.paired ?? []).map { peer in (peer, hosts.first { $0.id == peer.id.rawValue }) }
+    }
+
+    /// Macs on this network that this iPad has not paired with.
+    var unpairedHosts: [DiscoveredHost] {
+        hosts.filter { pairing?.peer($0.id) == nil }
+    }
+
+    /// Where to reach a Mac for pairing: on this network, or at the last typed address.
+    func endpoint(for id: DeviceID) -> NWEndpoint? {
+        if let host = hosts.first(where: { $0.id == id.rawValue }) { return host.endpoint }
+        return UserDefaults.standard.string(forKey: "lastAddress").flatMap(DiscoveredHost.address)?.endpoint
     }
 
     /// Closes the session screen.

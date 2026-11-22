@@ -1,5 +1,6 @@
 import AppKit
 import HostCapture
+import Pairing
 import SwiftUI
 
 /// Menu bar app with no Dock icon (`LSUIElement`). Phase 4 adds the LaunchAgent and the rest of
@@ -67,6 +68,30 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if controller.isInSession {
             menu.addItem(item("Disconnect", #selector(disconnect)))
         }
+        if let pairing = controller.pairing {
+            menu.addItem(item("Pair New Device…", #selector(pairNewDevice)))
+            let devices = NSMenuItem(title: "Paired Devices", action: nil, keyEquivalent: "")
+            let submenu = NSMenu()
+            if pairing.paired.isEmpty {
+                let none = NSMenuItem(title: "None yet", action: nil, keyEquivalent: "")
+                none.isEnabled = false
+                submenu.addItem(none)
+            }
+            for peer in pairing.paired {
+                let row = NSMenuItem(title: peer.name, action: nil, keyEquivalent: "")
+                let actions = NSMenu()
+                let key = NSMenuItem(title: "Key: \(peer.key.fingerprint.display)", action: nil, keyEquivalent: "")
+                key.isEnabled = false
+                actions.addItem(key)
+                let remove = item("Remove…", #selector(removePeer(_:)))
+                remove.representedObject = peer.id.rawValue
+                actions.addItem(remove)
+                row.submenu = actions
+                submenu.addItem(row)
+            }
+            devices.submenu = submenu
+            menu.addItem(devices)
+        }
         menu.addItem(item(controller.needsAttention ? "Permissions… (action needed)" : "Permissions…", #selector(showPermissions)))
         if controller.peerToPeer.anyOn {
             // A tip, not a fault: the stream works, just with stalls over Wi-Fi.
@@ -84,6 +109,25 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func disconnect() {
         controller.disconnect()
+    }
+
+    @objc private func pairNewDevice() {
+        controller.pairing?.open()
+    }
+
+    @objc private func removePeer(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let id = DeviceID(rawValue: raw),
+              let peer = controller.pairing?.paired.first(where: { $0.id == id }) else { return }
+        let alert = NSAlert()
+        alert.messageText = "Remove “\(peer.name)”?"
+        alert.informativeText = "It will no longer be able to connect to this Mac until you pair it again."
+        alert.addButton(withTitle: "Remove")
+        alert.addButton(withTitle: "Cancel")
+        NSApp.activate()
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        controller.pairing?.remove(id)
+        // A session already running with it ends too.
+        if controller.clientID == id { controller.disconnect() }
     }
 
     @objc private func showPermissions() {

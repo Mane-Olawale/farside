@@ -2,17 +2,8 @@ import Foundation
 import SessionTransport
 import WireProtocol
 
-/// Who this Mac says it is, in Bonjour and in HelloAck.
+/// What this Mac says about itself in HelloAck. Its id and key are in `HostPairing`.
 enum HostIdentity {
-    /// Stable for this install. Phase 3 replaces it with the Secure Enclave key's identifier.
-    static let deviceID: String = {
-        let key = "farside.deviceID"
-        if let id = UserDefaults.standard.string(forKey: key) { return id }
-        let id = UUID().uuidString
-        UserDefaults.standard.set(id, forKey: key)
-        return id
-    }()
-
     static var name: String { Host.current().localizedName ?? "Mac" }
 
     static var model: String {
