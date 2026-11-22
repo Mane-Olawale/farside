@@ -22,6 +22,10 @@ final class HostInputHandler: @unchecked Sendable {
     private let onAccessMissing: @Sendable () -> Void
     private let lastSeq = Atomic<UInt32>(0)
     private let lastPosted = Mutex<Point2?>(nil)
+    /// While the Mac is locked, text is typed with real key codes on the current layout: the path
+    /// spike S5 used to unlock it (plan section 9, software keyboard and text).
+    private let screenLocked = Atomic<Bool>(false)
+    private let keyMap = Mutex<LayoutKeyMap?>(nil)
 
     /// Reads the Mac's key repeat settings, so call on the main thread.
     @MainActor
@@ -47,6 +51,14 @@ final class HostInputHandler: @unchecked Sendable {
     /// The display holding a global point, if any.
     func display(containing point: Point2) -> (id: UInt32, bounds: Rect2)? { displays.display(containing: point) }
 
+    /// Call on the main thread: the layout map needs Text Input Source calls there.
+    @MainActor
+    func setScreenLocked(_ locked: Bool) {
+        if locked { keyMap.withLock { $0 = LayoutKeyMap.current() } }
+        screenLocked.store(locked, ordering: .relaxed)
+        log.info("screen \(locked ? "locked: text goes as key codes" : "unlocked", privacy: .public)")
+    }
+
     func refreshDisplays() {
         displays.set(Self.currentDisplays())
     }
@@ -64,7 +76,7 @@ final class HostInputHandler: @unchecked Sendable {
         queue.async { [self] in
             let events = replayer.releaseAll()
             if !events.isEmpty { log.info("released \(events.count) held inputs: \(reason, privacy: .public)") }
-            injector?.post(events)
+            post(events)
             reschedule()
         }
     }
@@ -79,7 +91,7 @@ final class HostInputHandler: @unchecked Sendable {
         queue.async { [self] in
             guard hasAccess() else { return }
             let events = replayer.handle(event, at: now())
-            injector?.post(events)
+            post(events)
             if let seq = replayer.lastPointerSeq { lastSeq.store(seq, ordering: .relaxed) }
             let location = replayer.lastLocation
             lastPosted.withLock { $0 = location }
@@ -88,6 +100,19 @@ final class HostInputHandler: @unchecked Sendable {
     }
 
     // MARK: Internals, on the queue
+
+    private func post(_ events: [PostedEvent]) {
+        guard let injector else { return }
+        for event in events {
+            if case .text(let string) = event, screenLocked.load(ordering: .relaxed), let map = keyMap.withLock({ $0 }) {
+                let unmapped = injector.typeWithKeyCodes(string, map: map, delay: 8_000)
+                // Characters the layout cannot type go as text, which the field also accepts.
+                if !unmapped.isEmpty { injector.post(.text(String(unmapped))) }
+            } else {
+                injector.post(event)
+            }
+        }
+    }
 
     private func now() -> Duration { ContinuousClock.now - origin }
 
@@ -118,7 +143,7 @@ final class HostInputHandler: @unchecked Sendable {
             if events.contains(where: { if case .key(_, false, _, _) = $0 { true } else { false } }) {
                 log.info("released held input after the iPad went quiet")
             }
-            injector?.post(events)
+            post(events)
             reschedule()
         }
         timer.resume()

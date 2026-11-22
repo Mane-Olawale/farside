@@ -60,6 +60,8 @@ final class HostController {
     @ObservationIgnored private var transport: WebRTCTransport?
     @ObservationIgnored private var media: HostMedia?
     @ObservationIgnored private var cursor: HostCursor?
+    /// Whether the Mac's screen is locked (plan section 6, lock screen).
+    @ObservationIgnored private var screenLocked = HostController.isScreenLockedNow()
     /// Whether this Mac's cursor shape can be read; checked once at launch.
     @ObservationIgnored private lazy var cursorShapesWork = HostCursor.shapesWork()
     @ObservationIgnored private var displayObserver: DisplayObserver?
@@ -95,6 +97,15 @@ final class HostController {
         }
         Task { await refreshScreenRecording() }
         refreshPeerToPeer()
+        let center = DistributedNotificationCenter.default()
+        for (name, locked) in [("com.apple.screenIsLocked", true), ("com.apple.screenIsUnlocked", false)] {
+            center.addObserver(forName: Notification.Name(name), object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.screenLocked = locked
+                    self?.media?.input.setScreenLocked(locked)
+                }
+            }
+        }
         // A grant made in System Settings applies at once; notice it without the menu opening.
         Task { [weak self] in
             while !Task.isCancelled {
@@ -209,6 +220,8 @@ final class HostController {
         let input = HostInputHandler(onAccessMissing: { [weak self] in
             Task { @MainActor in self?.refreshAccessibility() }
         })
+        screenLocked = Self.isScreenLockedNow()
+        input.setScreenLocked(screenLocked)
         let media = HostMedia(
             input: input,
             cursorInVideo: !cursorShapesWork,
@@ -385,6 +398,12 @@ final class HostController {
         }
         // The LAN first; a VPN tunnel (utun) after.
         return (candidates.first { $0.name.hasPrefix("en") } ?? candidates.first)?.ip
+    }
+
+    /// The console session's lock state, for when the app starts with the Mac already locked.
+    static func isScreenLockedNow() -> Bool {
+        guard let session = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
+        return (session["CGSSessionScreenIsLocked"] as? Bool) ?? (session["CGSSessionScreenIsLocked"] as? Int).map { $0 != 0 } ?? false
     }
 
     private func changed() { onChange?() }
