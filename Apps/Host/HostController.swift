@@ -91,6 +91,7 @@ final class HostController {
         case (false, _): screenRecording = .missing
         case (true, nil): screenRecording = .granted
         }
+        log.info("screen recording: at launch \(ScreenRecordingAccess.atLaunch), live \(String(describing: live), privacy: .public) -> \(String(describing: self.screenRecording), privacy: .public)")
         changed()
     }
 

@@ -28,7 +28,12 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller.onChange = { [weak self] in self?.updateIcon() }
         updateIcon()
         controller.start()
-        if !ScreenRecordingAccess.atLaunch { showPermissions() }
+        Task {
+            await controller.refreshScreenRecording()
+            // The checklist opens whenever Screen Recording is not working right now, judged by
+            // ScreenCaptureKit itself (spike S6), not only by the launch-time preflight.
+            if controller.screenRecording != .granted { showPermissions() }
+        }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
