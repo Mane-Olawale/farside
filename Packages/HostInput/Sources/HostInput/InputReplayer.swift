@@ -85,6 +85,9 @@ public struct InputReplayer: Sendable {
     public private(set) var lastLocation: Point2?
 
     private var repeating: (key: UInt16, flags: UInt64, next: Duration)?
+    /// The repeat stopped for silence with its key still held; it resumes when the iPad is heard
+    /// again, so a brief Wi-Fi stall does not end a held key's repeat for good.
+    private var pausedRepeat: (key: UInt16, flags: UInt64)?
     private var lastHeard: Duration?
     private var lastActivity: Duration?
     /// Fractional scroll left over, so slow trackpad scrolls are not rounded away.
@@ -99,6 +102,10 @@ public struct InputReplayer: Sendable {
 
     public mutating func handle(_ event: InputEvent, at now: Duration) -> [PostedEvent] {
         lastHeard = now
+        if let paused = pausedRepeat {
+            pausedRepeat = nil
+            if held.keys.contains(paused.key) { repeating = (paused.key, paused.flags, now + settings.repeatInterval) }
+        }
         var out: [PostedEvent] = []
         if event != .heartbeat, lastActivity.map({ now - $0 >= settings.activityInterval }) ?? true {
             lastActivity = now
@@ -191,7 +198,9 @@ public struct InputReplayer: Sendable {
         while let current = repeating, current.next <= now {
             if let lastHeard, now - lastHeard >= settings.repeatSilence {
                 // The network stalled with a key held: stop, rather than run away (section 9).
-                stopRepeat()
+                // The key is still held, so the repeat resumes when the iPad is heard again.
+                pausedRepeat = (current.key, current.flags)
+                repeating = nil
                 break
             }
             out.append(.key(current.key, down: true, flags: current.flags, isRepeat: true))
@@ -241,7 +250,10 @@ public struct InputReplayer: Sendable {
         return out
     }
 
-    private mutating func stopRepeat() { repeating = nil }
+    private mutating func stopRepeat() {
+        repeating = nil
+        pausedRepeat = nil
+    }
 
     // MARK: Helpers
 

@@ -809,6 +809,7 @@ macOS does not auto-repeat synthetic key events, so the host generates repeats i
 - The host starts a timer on key down, using the Mac's own repeat delay and interval settings.
 - Repeats stop on key up, on release-all, or when no heartbeat has arrived from the iPad for 300 ms.
 - The heartbeat rule prevents a runaway repeat when the network stalls with a key held.
+- A stall only pauses the repeat: if the key is still held when the iPad is heard again, repeats carry on at the repeat interval.
 
 Phase 0 spike S2 confirms the no-repeat behavior before this is built.
 

@@ -193,6 +193,29 @@ import Testing
         #expect(r.advance(to: ms(600)).isEmpty)    // silent since 200
     }
 
+    /// A brief stall pauses the repeat; once the iPad is heard again with the key still held,
+    /// it carries on at the repeat interval.
+    @Test func repeatResumesWhenTheIPadIsHeardAgain() {
+        var r = replayer(.init(repeatDelay: ms(100), repeatInterval: ms(50), repeatSilence: ms(300)))
+        _ = r.handle(.key(hidUsage: 0x0E, down: true, modifiers: []), at: .zero)
+        _ = r.handle(.heartbeat, at: ms(100))
+        #expect(r.advance(to: ms(350)).count == 6)  // 100 ... 350
+        #expect(r.advance(to: ms(450)).isEmpty)     // silent since 100: paused
+        _ = r.handle(.heartbeat, at: ms(500))
+        #expect(r.nextDeadline == ms(550))
+        #expect(r.advance(to: ms(600)) == [.key(k, down: true, flags: MacEventFlags.nonCoalesced, isRepeat: true),
+                                            .key(k, down: true, flags: MacEventFlags.nonCoalesced, isRepeat: true)])
+    }
+
+    @Test func releasedKeyDoesNotResumeAfterAStall() {
+        var r = replayer(.init(repeatDelay: ms(100), repeatInterval: ms(50), repeatSilence: ms(300)))
+        _ = r.handle(.key(hidUsage: 0x0E, down: true, modifiers: []), at: .zero)
+        _ = r.advance(to: ms(450))
+        _ = r.handle(.key(hidUsage: 0x0E, down: false, modifiers: []), at: ms(500))
+        _ = r.handle(.heartbeat, at: ms(510))
+        #expect(r.advance(to: ms(2000)).isEmpty)
+    }
+
     @Test func modifiersDoNotRepeat() {
         var r = replayer(.init(repeatDelay: ms(100), repeatInterval: ms(50)))
         _ = r.handle(.key(hidUsage: KeyMap.Usage.leftShift, down: true, modifiers: .leftShift), at: .zero)
