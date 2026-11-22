@@ -88,6 +88,7 @@ public struct CaptureCounters: Sendable {
     public var complete = 0
     public var idle = 0
     public var other = 0
+    public init() {}
 }
 
 /// One `SCStream` on one display, configured per plan section 8. Delivers only complete frames;

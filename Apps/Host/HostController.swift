@@ -52,6 +52,7 @@ final class HostController {
     @ObservationIgnored private var media: HostMedia?
     @ObservationIgnored private var displayObserver: DisplayObserver?
     @ObservationIgnored private var activity: NSObjectProtocol?
+    @ObservationIgnored private var statsTask: Task<Void, Never>?
     /// Changes whenever the menu should be rebuilt.
     @ObservationIgnored var onChange: (() -> Void)?
 
@@ -180,6 +181,7 @@ final class HostController {
         clientName = client?.name
         switch state {
         case .securing, .streaming, .paused, .recovering:
+            if state == .streaming, statsTask == nil { startStatsLog() }
             if activity == nil {
                 // Keeps App Nap away and the display awake while someone is watching (plan section 6).
                 activity = ProcessInfo.processInfo.beginActivity(
@@ -205,6 +207,35 @@ final class HostController {
     private func endActivity() {
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
         activity = nil
+        statsTask?.cancel()
+        statsTask = nil
+    }
+
+    /// One line every 5 s while streaming: what capture delivered and what the encoder sent.
+    /// A static screen should show no complete frames and no new encoded frames.
+    private func startStatsLog() {
+        let log = self.log
+        statsTask = Task { [weak self] in
+            var last: TransportStats?
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                guard let self, let transport = self.transport, let media = self.media else { return }
+                let s = await transport.stats()
+                let c = media.takeCaptureCounters()
+                let encoded = (s.framesEncoded ?? 0) - (last?.framesEncoded ?? 0)
+                let bytes = (s.bytesSent ?? 0) - (last?.bytesSent ?? 0)
+                last = s
+                log.info("""
+                stats 5s: captured \(c.complete) complete, \(c.idle) idle; encoded \(Int(encoded)) \
+                (\(String(format: "%.1f", encoded / 5)) fps), sent \(String(format: "%.2f", bytes * 8 / 5 / 1e6)) Mbps, \
+                target \(String(format: "%.1f", (s.targetBitrate ?? 0) / 1e6)) Mbps, \
+                encode avg \(String(format: "%.1f", (s.totalEncodeTime ?? 0) / max(s.framesEncoded ?? 1, 1) * 1000)) ms, \
+                rtt \(String(format: "%.1f", (s.roundTripTime ?? 0) * 1000)) ms, \
+                \(Int(s.frameWidth ?? 0))x\(Int(s.frameHeight ?? 0)) \(s.codec ?? "?", privacy: .public), \
+                limit \(s.qualityLimitationReason ?? "?", privacy: .public)
+                """)
+            }
+        }
     }
 
     private func mediaProblem(_ problem: HostMedia.Problem) {

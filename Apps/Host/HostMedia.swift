@@ -30,6 +30,11 @@ final class HostMedia: HostSessionDelegate, @unchecked Sendable {
         self.onProblem = onProblem
     }
 
+    /// Capture counters since the last call: complete frames delivered, idle frames dropped.
+    func takeCaptureCounters() -> CaptureCounters {
+        lock.withLock { capture }?.takeCounters() ?? CaptureCounters()
+    }
+
     func use(_ transport: SessionTransport?) {
         lock.withLock { self.transport = transport }
     }
