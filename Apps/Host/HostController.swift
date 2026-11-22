@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import HostCapture
+import MediaCore
 import Observation
 import os
 import SessionTransport
@@ -236,6 +237,7 @@ final class HostController {
                 \(Int(s.frameWidth ?? 0))x\(Int(s.frameHeight ?? 0)) \(s.codec ?? "?", privacy: .public), \
                 limit \(s.qualityLimitationReason ?? "?", privacy: .public)
                 """)
+                log.info("timeline 5s: \(FrameTimeline.shared.summary(), privacy: .public)")
             }
         }
     }

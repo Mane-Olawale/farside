@@ -138,6 +138,7 @@ final class EncoderAdapter: NSObject, RTCVideoEncoder, @unchecked Sendable {
                     } else {
                         info = GenericCodecInfo()
                     }
+                    FrameTimeline.shared.mark(.encoded)
                     _ = callback(image, info)
                 } else if encoded == nil, key {
                     // A dropped key frame must not be forgotten.
@@ -206,10 +207,12 @@ final class DecoderAdapter: NSObject, RTCVideoDecoder, @unchecked Sendable {
 
     func decode(_ encodedImage: RTCEncodedImage, missingFrames: Bool, codecSpecificInfo info: (any RTCCodecSpecificInfo)?, renderTimeMs: Int64) -> Int {
         let rtpTimestamp = encodedImage.timeStamp
+        FrameTimeline.shared.arrived(rtpTimestamp: rtpTimestamp)
         let captureMs = encodedImage.captureTimeMs
         let frame = EncodedFrame(codec: codec, data: encodedImage.buffer, isKeyFrame: encodedImage.frameType == .videoFrameKey,
                                  number: UInt64(rtpTimestamp), displayTicks: 0)
         let accepted = decoder.decodeFrame(frame) { [weak self] pixels in
+            FrameTimeline.shared.mark(.decoded)
             guard let self, let callback = self.lock.withLock({ self.callback }) else { return }
             let out = RTCVideoFrame(buffer: RTCCVPixelBuffer(pixelBuffer: pixels.buffer), rotation: ._0, timeStampNs: captureMs * 1_000_000)
             out.timeStamp = Int32(bitPattern: rtpTimestamp)

@@ -141,6 +141,9 @@ public final class VideoPresenter: NSObject, CAMetalDisplayLinkDelegate, @unchec
         let drawn = renderer.encode(item.pixels.buffer, into: update.drawable, acquiredTicks: HostClock.now()) { times in
             callback?(tag, times)
         }
-        if drawn { counters.withLock { $0.presented += 1 } }
+        if drawn {
+            counters.withLock { $0.presented += 1 }
+            FrameTimeline.shared.mark(.presented, at: HostClock.ticks(seconds: target))
+        }
     }
 }

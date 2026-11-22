@@ -93,6 +93,7 @@ final class HostMedia: HostSessionDelegate, @unchecked Sendable {
             let transport = self.transport
             let capture = DisplayCapture(
                 onFrame: { frame in
+                    FrameTimeline.shared.mark(.captured, at: frame.arrivalTicks)
                     transport?.push(frame.pixels, timestampNs: Int64(HostClock.seconds(frame.displayTicks) * 1_000_000_000))
                 },
                 onStop: { [weak self] error in

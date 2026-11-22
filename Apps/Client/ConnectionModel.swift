@@ -151,12 +151,21 @@ final class ConnectionModel: Identifiable {
     // MARK: Stats
 
     private func startStats() {
+        FrameTimeline.shared.reset()
+        let timing = TimingLog()
         statsTask = Task { [weak self] in
+            var tick = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
                 guard let self, let transport = self.transport else { return }
                 let current = await transport.stats()
                 self.update(with: current)
+                tick += 1
+                if tick % 5 == 0 {
+                    let s = self.stats
+                    timing.write(String(format: "rtt %.0f ms, jitter buffer %.1f ms; ", s.roundTripMs ?? -1, s.jitterBufferMs ?? -1)
+                                 + FrameTimeline.shared.summary())
+                }
             }
         }
     }
@@ -280,5 +289,28 @@ final class VideoSurfaceView: UIView {
         let scale = window?.screen.nativeScale ?? traitCollection.displayScale
         metalLayer.contentsScale = scale
         onDrawableSize?(CGSize(width: bounds.width * scale, height: bounds.height * scale))
+    }
+}
+
+/// Diagnostics: the frame timeline every 5 s, appended to Documents/timing.log. Copy it off with
+/// `xcrun devicectl device copy from --domain-type appDataContainer`.
+final class TimingLog: Sendable {
+    private let url = URL.documentsDirectory.appending(path: "timing.log")
+    private let queue = DispatchQueue(label: "farside.timing-log", qos: .utility)
+    private let log = Logger(subsystem: "app.farside.client", category: "timing")
+
+    func write(_ line: String) {
+        log.info("\(line, privacy: .public)")
+        let stamped = "\(Date().formatted(.iso8601.time(includingFractionalSeconds: true))) \(line)\n"
+        queue.async { [url] in
+            guard let data = stamped.data(using: .utf8) else { return }
+            if let handle = try? FileHandle(forWritingTo: url) {
+                _ = try? handle.seekToEnd()
+                try? handle.write(contentsOf: data)
+                try? handle.close()
+            } else {
+                try? data.write(to: url)
+            }
+        }
     }
 }
