@@ -27,5 +27,6 @@ let package = Package(
         .target(name: "WebRTCAudioShim", dependencies: [
             .product(name: "WebRTC", package: "WebRTC"),
         ]),
+        .testTarget(name: "SessionTransportTests", dependencies: ["SessionTransport"]),
     ]
 )
