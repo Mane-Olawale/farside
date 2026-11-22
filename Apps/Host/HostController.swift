@@ -43,6 +43,8 @@ final class HostController {
     private(set) var localNetwork: LocalNetworkStatus = .unconfirmed
     private(set) var sessionState: SessionState = .idle
     private(set) var clientName: String?
+    /// AirDrop and Universal Control, which stall the stream over Wi-Fi when on.
+    private(set) var peerToPeer = PeerToPeerWiFi.off
     /// The user asked for access this run; a restart is what applies it.
     private(set) var restartSuggested = false
 
@@ -80,6 +82,17 @@ final class HostController {
             Task { @MainActor in self?.session?.sendDisplays() }
         }
         Task { await refreshScreenRecording() }
+        refreshPeerToPeer()
+    }
+
+    /// Rereads the AirDrop and Universal Control settings. Cheap; called whenever the menu or
+    /// the checklist is shown and when a session starts.
+    func refreshPeerToPeer() {
+        let now = PeerToPeerWiFi.current()
+        guard now != peerToPeer else { return }
+        peerToPeer = now
+        log.info("peer-to-peer Wi-Fi: AirDrop \(now.airDrop ? "on" : "off", privacy: .public), Universal Control \(now.universalControl ? "on" : "off", privacy: .public)")
+        changed()
     }
 
     // MARK: Permissions
@@ -105,6 +118,8 @@ final class HostController {
     enum SettingsPane: String {
         case screenRecording = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
         case localNetwork = "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork"
+        case airDrop = "x-apple.systempreferences:com.apple.AirDrop-Handoff-Settings.extension"
+        case displays = "x-apple.systempreferences:com.apple.Displays-Settings.extension"
     }
 
     func openSettings(_ pane: SettingsPane) {
@@ -183,7 +198,10 @@ final class HostController {
         clientName = client?.name
         switch state {
         case .securing, .streaming, .paused, .recovering:
-            if state == .streaming, statsTask == nil { startStatsLog() }
+            if state == .streaming, statsTask == nil {
+                startStatsLog()
+                refreshPeerToPeer()
+            }
             if activity == nil {
                 // Keeps App Nap away and the display awake while someone is watching (plan section 6).
                 activity = ProcessInfo.processInfo.beginActivity(

@@ -51,6 +51,7 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: Menu, rebuilt each time it opens
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        controller.refreshPeerToPeer()
         menu.removeAllItems()
         let status = NSMenuItem(title: controller.statusLine, action: nil, keyEquivalent: "")
         status.isEnabled = false
@@ -60,6 +61,10 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(item("Disconnect", #selector(disconnect)))
         }
         menu.addItem(item(controller.needsAttention ? "Permissions… (action needed)" : "Permissions…", #selector(showPermissions)))
+        if controller.peerToPeer.anyOn {
+            // A tip, not a fault: the stream works, just with stalls over Wi-Fi.
+            menu.addItem(item("Smoother Wi-Fi: turn off \(controller.peerToPeer.names)…", #selector(showPermissions)))
+        }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Farside Host", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }

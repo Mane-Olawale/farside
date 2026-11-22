@@ -30,6 +30,33 @@ struct PermissionsView: View {
                     Button("Open Settings") { controller.openSettings(.localNetwork) }
                 })
 
+            if controller.peerToPeer.anyOn {
+                Divider()
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "wifi.exclamationmark")
+                        .foregroundStyle(.orange)
+                        .font(.title2)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Smoother streaming over Wi-Fi").font(.body.weight(.semibold))
+                        Text("\(controller.peerToPeer.names) \(controller.peerToPeer.airDrop && controller.peerToPeer.universalControl ? "are" : "is") on. While they are, this Mac's Wi-Fi pauses several times a second, and the picture on your iPad stutters. Turn them off while you use Farside.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing) {
+                        if controller.peerToPeer.airDrop {
+                            Button("AirDrop Settings") { controller.openSettings(.airDrop) }
+                        }
+                        if controller.peerToPeer.universalControl {
+                            Button("Display Settings") { controller.openSettings(.displays) }
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
+
             if controller.restartSuggested || controller.screenRecording == .missing || controller.screenRecording == .revoked {
                 Divider()
                 HStack {
@@ -48,6 +75,7 @@ struct PermissionsView: View {
             // ScreenCaptureKit is the only live signal (spike S6); poll it while the window is open.
             while !Task.isCancelled {
                 await controller.refreshScreenRecording()
+                controller.refreshPeerToPeer()
                 try? await Task.sleep(for: .seconds(5))
             }
         }

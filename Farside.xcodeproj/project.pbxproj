@@ -51,6 +51,7 @@
 		94E36DBEE1924F41C0B48654 /* HostCapture in Frameworks */ = {isa = PBXBuildFile; productRef = F9FD15BD5FFF9CE1D634D645 /* HostCapture */; };
 		997A1663893669DEBC91945A /* SessionTransport in Frameworks */ = {isa = PBXBuildFile; productRef = 71C4972CA0A949A40F3F5542 /* SessionTransport */; };
 		99C2266FE7F35B402BB21231 /* install-check-agent.sh in Resources */ = {isa = PBXBuildFile; fileRef = D384A3AF48D770A8FE182D11 /* install-check-agent.sh */; };
+		9AFAD0C90308BC5ECDDDAFCD /* PeerToPeerWiFi.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943DD17E66EEA97B55CC1613 /* PeerToPeerWiFi.swift */; };
 		9BAAFB104FA450B34973891B /* Probe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8485CB2081C60513A703379 /* Probe.swift */; };
 		A17F063713B5B84889F17AA1 /* CodeReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3968D6C4E5DDCE05E626A946 /* CodeReader.swift */; };
 		A1A5D3BD7C92EE71C229D529 /* Pairing in Frameworks */ = {isa = PBXBuildFile; productRef = 2852885D927FC670FF6BB795 /* Pairing */; };
@@ -120,6 +121,7 @@
 		897F798E900AB07DE1AAB21C /* MetalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalView.swift; sourceTree = "<group>"; };
 		8B749AA68C52F7A27101DF17 /* InputProbe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = InputProbe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		90E33EA876770DAFF8BCE77E /* InputModel */ = {isa = PBXFileReference; lastKnownFileType = folder; name = InputModel; path = Packages/InputModel; sourceTree = SOURCE_ROOT; };
+		943DD17E66EEA97B55CC1613 /* PeerToPeerWiFi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerToPeerWiFi.swift; sourceTree = "<group>"; };
 		9492B6E160FB1BC17B134570 /* LockProbeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockProbeApp.swift; sourceTree = "<group>"; };
 		959B17A4BE9EF2D80D41DF9A /* HostMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostMedia.swift; sourceTree = "<group>"; };
 		9D0997DD3EDAE2468F015B13 /* HostApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostApp.swift; sourceTree = "<group>"; };
@@ -401,6 +403,7 @@
 				C2D635D582A06B83727ED2DE /* HostController.swift */,
 				FDA929D4216BC300CADD388F /* HostIdentity.swift */,
 				959B17A4BE9EF2D80D41DF9A /* HostMedia.swift */,
+				943DD17E66EEA97B55CC1613 /* PeerToPeerWiFi.swift */,
 				09C3F58AE13FBF4A206FFE48 /* PermissionsView.swift */,
 			);
 			path = Host;
@@ -810,6 +813,7 @@
 				49BFA16F1D4A762686266BF1 /* HostController.swift in Sources */,
 				6441C6517B83772A155F587D /* HostIdentity.swift in Sources */,
 				ED32CEF3B8690FF70E052743 /* HostMedia.swift in Sources */,
+				9AFAD0C90308BC5ECDDDAFCD /* PeerToPeerWiFi.swift in Sources */,
 				B990E4E175F4BC17658177C6 /* PermissionsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
