@@ -5,6 +5,7 @@ import HostCapture
 import MediaCore
 import os
 import SessionTransport
+import SessionTransportWebRTC
 import Synchronization
 import Telemetry
 
@@ -29,9 +30,10 @@ final class S3HostApp: NSObject, NSApplicationDelegate {
     private var readout: NSTextField?
 
     private var capture: DisplayCapture?
-    private var host: WebRTCSession?
-    private var client: WebRTCSession?
-    private var signaling: LANSignaling?
+    private var host: WebRTCTransport?
+    private var client: WebRTCTransport?
+    private var advertiser: LANAdvertiser?
+    private var signaling: SignalingConnection?
     private var renderer: MetalRenderer?
     private var timer: Timer?
     private var startedAt: Date?
@@ -138,6 +140,20 @@ final class S3HostApp: NSObject, NSApplicationDelegate {
             log.info("\(state, privacy: .public)")
             Task { @MainActor in self?.events.append(state) }
         }
+        /// Logs transport events; hands control-channel probe messages to `onProbe`.
+        let events: @Sendable (String, (@Sendable (ProbeMessage) -> Void)?) -> @Sendable (TransportEvent) -> Void = { prefix, onProbe in
+            { event in
+                switch event {
+                case .message(.control, let data):
+                    if let onProbe, let message = ProbeMessage.decode(data) { onProbe(message) }
+                case .message:
+                    break
+                default:
+                    onState("\(prefix) \(event)")
+                }
+            }
+        }
+        let configuration = TransportConfiguration(playout: playout, codecs: codecs)
         let makeEncoder: @Sendable (VideoCodec, Int, Int, Int) -> FrameEncoding? = { codec, w, h, bitrate in
             try? VideoEncoder(settings: EncoderSettings(codec: codec, width: w, height: h, bitrate: bitrate))
         }
@@ -188,10 +204,13 @@ final class S3HostApp: NSObject, NSApplicationDelegate {
                     item = next
                 }
             }
-            let client = WebRTCSession(
-                role: .client, playout: playout, codecs: codecs, audio: clientAudio,
+            let client = WebRTCTransport(
+                role: .client, configuration: configuration, audio: clientAudio,
                 makeDecoder: { _ in VideoDecoder() },
-                onFrame: { pixels, _ in
+                handlers: TransportHandlers(
+                signal: { message in relay.toHost(message) },
+                event: events("client", nil),
+                frame: { pixels, _ in
                     let now = HostClock.now()
                     var displayTicks: UInt64?
                     if let counter = reader?.read(pixels.buffer) {
@@ -202,46 +221,54 @@ final class S3HostApp: NSObject, NSApplicationDelegate {
                     }
                     samples.count(.framesRendered)
                     if let first = renderSlot.offer((pixels, displayTicks)) { renderQueue.async { render(first) } }
-                },
-                signal: { message in relay.toHost(message) },
-                onState: { onState("client \($0)") })
-            let host = WebRTCSession(
-                role: .host, playout: playout, codecs: codecs, audio: hostAudio, makeEncoder: makeEncoder,
-                makeDecoder: { _ in VideoDecoder() },
-                signal: { message in relay.toClient(message) },
-                onState: { onState("host \($0)") })
+                }))
+            let host = WebRTCTransport(
+                role: .host, configuration: configuration, audio: hostAudio, makeEncoder: makeEncoder,
+                handlers: TransportHandlers(signal: { message in relay.toClient(message) }, event: events("host", nil)))
             relay.connect(host: host, client: client)
             self.host = host
             self.client = client
             host.start()
         } else {
-            let host = WebRTCSession(
-                role: .host, playout: playout, codecs: codecs, audio: hostAudio, makeEncoder: makeEncoder,
-                makeDecoder: { _ in VideoDecoder() },
-                signal: { [weak self] message in Task { @MainActor in self?.signaling?.send(message) } },
-                onMessage: { [weak self] channel, data in
-                    guard channel == .control, let message = ProbeMessage.decode(data) else { return }
-                    Task { @MainActor in self?.handle(message, at: HostClock.now()) }
-                },
-                onState: { onState("host \($0)") })
-            self.host = host
-            do {
-                signaling = try LANSignaling.serve(
-                    name: "Farside S3",
-                    onConnect: { [weak self] in
-                        Task { @MainActor in
-                            guard let self else { return }
-                            self.signaling?.send(SignalMessage(kind: .config, playout: playout, codecs: codecs, audio: self.audio))
-                            self.startedAt = Date()
-                            try? await Task.sleep(for: .milliseconds(300))
-                            self.host?.start()
-                        }
+            // The viewer sets its field trials from the offer, so the run's settings ride along in it.
+            let extra = ["playout": playout.rawValue, "codecs": codecs.map(\.rawValue).joined(separator: ","), "audio": audio ? "1" : "0"]
+            let host = WebRTCTransport(
+                role: .host, configuration: configuration, audio: hostAudio, makeEncoder: makeEncoder,
+                handlers: TransportHandlers(
+                    signal: { [weak self] message in
+                        var message = message
+                        if message.kind == .offer { message.body.extra = extra }
+                        Task { @MainActor in self?.signaling?.send(message) }
                     },
-                    onMessage: { [weak self] message in Task { @MainActor in self?.host?.handle(message) } },
-                    onState: { onState("signaling \($0)") })
+                    event: events("host") { [weak self] message in
+                        Task { @MainActor in self?.handle(message, at: HostClock.now()) }
+                    }))
+            self.host = host
+            let advertiser = LANAdvertiser(
+                id: "s3host", name: "Farside S3",
+                onConnection: { [weak self] connection in
+                    Task { @MainActor in
+                        guard let self, self.signaling == nil else { return connection.close() }
+                        self.signaling = connection
+                        connection.start(
+                            onState: { [weak self] state in
+                                onState("signaling \(state)")
+                                guard state == .ready else { return }
+                                Task { @MainActor in
+                                    self?.startedAt = Date()
+                                    self?.host?.start()
+                                }
+                            },
+                            onMessage: { [weak self] message in Task { @MainActor in self?.host?.handle(message) } })
+                    }
+                },
+                onState: { onState("advertiser \($0)") })
+            do {
+                try advertiser.start()
             } catch {
                 return finish(error: "Signaling failed: \(error)")
             }
+            self.advertiser = advertiser
         }
 
         let host = self.host!
@@ -379,7 +406,8 @@ final class S3HostApp: NSObject, NSApplicationDelegate {
             await capture?.stop()
             host?.close()
             client?.close()
-            signaling?.stop()
+            signaling?.close()
+            advertiser?.stop()
             NSApp.terminate(nil)
         }
     }
@@ -387,10 +415,10 @@ final class S3HostApp: NSObject, NSApplicationDelegate {
 
 /// Passes signaling between two in-process peers, asynchronously so neither re-enters itself.
 final class SignalRelay: @unchecked Sendable {
-    private var host: WebRTCSession?
-    private var client: WebRTCSession?
+    private var host: WebRTCTransport?
+    private var client: WebRTCTransport?
     private let queue = DispatchQueue(label: "farside.s3.relay")
-    func connect(host: WebRTCSession, client: WebRTCSession) {
+    func connect(host: WebRTCTransport, client: WebRTCTransport) {
         queue.sync { self.host = host; self.client = client }
     }
     func toHost(_ m: SignalMessage) { queue.async { self.host?.handle(m) } }

@@ -51,12 +51,44 @@ public struct CapturedFrame: Sendable {
 
 public enum CaptureError: Error {
     case displayNotFound(CGDirectDisplayID)
+
+    /// ScreenCaptureKit's "user declined" error, −3801. Spike S6: while the app runs, this is the
+    /// only signal that the Screen Recording grant is missing or was revoked.
+    public static func isPermissionDenied(_ error: Error) -> Bool {
+        if let sc = error as? SCStreamError, sc.code == .userDeclined { return true }
+        let ns = error as NSError
+        return ns.domain == SCStreamErrorDomain && ns.code == SCStreamError.Code.userDeclined.rawValue
+    }
+}
+
+/// Screen Recording status (plan section 6, permissions; spike S6).
+public enum ScreenRecordingAccess {
+    /// What `CGPreflightScreenCaptureAccess` said when this process started. The call keeps
+    /// returning that value for the life of the process, so it counts only at launch.
+    public static let atLaunch: Bool = CGPreflightScreenCaptureAccess()
+
+    /// The live answer: whether ScreenCaptureKit will hand over a display list right now.
+    /// Nil when it failed for some other reason.
+    public static func live() async -> Bool? {
+        do {
+            _ = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            return true
+        } catch {
+            return CaptureError.isPermissionDenied(error) ? false : nil
+        }
+    }
+
+    /// Shows the system prompt the first time; after that it only opens nothing. A grant takes
+    /// effect after the app restarts.
+    @discardableResult
+    public static func request() -> Bool { CGRequestScreenCaptureAccess() }
 }
 
 public struct CaptureCounters: Sendable {
     public var complete = 0
     public var idle = 0
     public var other = 0
+    public init() {}
 }
 
 /// One `SCStream` on one display, configured per plan section 8. Delivers only complete frames;

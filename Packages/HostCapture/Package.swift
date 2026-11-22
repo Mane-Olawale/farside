@@ -15,5 +15,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "HostCapture", dependencies: ["MediaCore"]),
+        .testTarget(name: "HostCaptureTests", dependencies: ["HostCapture"]),
     ]
 )

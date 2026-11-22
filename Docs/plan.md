@@ -1151,6 +1151,8 @@ Steps 1 to 6 pass through the backend and carry only signed setup messages. From
 4. The same signed signaling envelopes flow over that socket.
 5. With no ICE servers configured, only local addresses are offered, and the session connects in well under a second.
 
+On Wi-Fi, AirDrop and Universal Control on the Mac make its radio pause several times a second (risk R18). The host shows a tip while either is on.
+
 Connect by address uses the same path with a typed host name or IP. That makes the product usable over Tailscale or any VPN before Phase 3 exists.
 
 ### Over the internet
@@ -1912,7 +1914,7 @@ Exit criteria:
 
 ## 20. Risks and open questions
 
-Seventeen risks are tracked, and three of them can each break the definition of done: the recurring capture prompt, lock screen behavior, and the limits of WebRTC's Objective-C API. All three are tested in Phase 0, before product code exists.
+Eighteen risks are tracked, and three of them can each break the definition of done: the recurring capture prompt, lock screen behavior, and the limits of WebRTC's Objective-C API. All three are tested in Phase 0, before product code exists.
 
 ### Risks
 
@@ -1935,6 +1937,7 @@ Seventeen risks are tracked, and three of them can each break the definition of 
 | R15 | A headless Mac offers only a low-resolution display | Medium | Low | Dummy display plug | Phase 4 |
 | R16 | The backend is a single point of failure for new internet sessions | Low | Medium | LAN and VPN paths do not need it. Redeploy is simple | Phase 7 |
 | R17 | Pointer lock does not engage reliably on iPadOS. Spike S7 saw it engage in one run and not in another with the same code | Medium | Low | Absolute pointer mode as the fallback, and GameController's relative deltas for trackpad mode. Phase 6 finds the exact conditions | Phase 6 |
+| R18 | AWDL, Apple's peer-to-peer Wi-Fi, is kept busy by AirDrop and Universal Control and takes the Mac's Wi-Fi radio off the network's channel. Measured in Phase 1: about four stalls of about 100 ms a second, so the iPad showed about 44 of 60 frames and glass-to-glass reached 117 ms. With both features off: no stalls, about 60 fps shown, glass-to-glass about 22 ms on average | Certain on Wi-Fi with either feature on and an Apple device nearby | High for Wi-Fi sessions | Farside cannot turn AWDL off without a privileged helper. The host reads both settings and shows a tip in its menu and checklist while either is on. AWDL's own interface status cannot be used: it stays active either way. Ethernet on the Mac avoids the problem | Phase 1 (tip). A privileged helper is a Phase 8 option |
 
 ### Open questions
 

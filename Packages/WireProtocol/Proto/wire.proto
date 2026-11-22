@@ -1,0 +1,174 @@
+// Farside wire protocol, version 1 (plan sections 10, 11 and 21 C).
+//
+// Every data channel message is exactly one Envelope. The channel keeps message boundaries,
+// so there is no length prefix.
+//
+// Rules (plan section 11, versioning):
+// - Fields are only ever added. Field numbers are never reused.
+// - A removed field or message is marked reserved, never deleted.
+// - Envelope body numbers follow the plan's catalog, so later phases fill in the gaps
+//   (19 KeyFrameRequest, 30s input, 40s cursor, 50s clipboard, 60 Chunk) without renumbering.
+// - Run `make proto` after any change and commit the generated Swift. CI fails if it differs.
+
+syntax = "proto3";
+
+package farside.v1;
+
+message Envelope {
+  uint32 seq = 1;         // Per channel, wraps.
+  uint64 sent_at_us = 2;  // Sender's monotonic clock, microseconds.
+
+  oneof body {
+    // control
+    Hello hello = 10;
+    HelloAck hello_ack = 11;
+    StreamConfig stream_config = 12;
+    StreamConfigApplied stream_config_applied = 13;
+    DisplayList display_list = 14;
+    Ping ping = 15;
+    Pong pong = 16;
+    Bye bye = 23;
+  }
+}
+
+enum VideoCodec {
+  VIDEO_CODEC_UNSPECIFIED = 0;
+  VIDEO_CODEC_HEVC = 1;
+  VIDEO_CODEC_H264 = 2;
+}
+
+// The toolbar's quality setting (plan section 7). The host decides what it means.
+enum QualityPreference {
+  QUALITY_PREFERENCE_UNSPECIFIED = 0;
+  QUALITY_PREFERENCE_BALANCED = 1;
+  QUALITY_PREFERENCE_SHARPER = 2;
+  QUALITY_PREFERENCE_SMOOTHER = 3;
+}
+
+// Plan section 15, end reasons.
+enum EndReason {
+  END_REASON_UNSPECIFIED = 0;
+  END_REASON_USER_ENDED = 1;
+  END_REASON_HOST_ENDED = 2;
+  END_REASON_TAKEN_OVER = 3;
+  END_REASON_RING_TIMEOUT = 4;
+  END_REASON_PATH_TIMEOUT = 5;
+  END_REASON_AUTH_FAILED = 6;
+  END_REASON_VERSION_MISMATCH = 7;
+  END_REASON_PERMISSION_MISSING = 8;
+  END_REASON_HOST_SLEEPING = 9;
+  END_REASON_NETWORK_LOST = 10;
+  END_REASON_INTERNAL_ERROR = 11;
+  // Another device is already in a session with this Mac (plan section 7, error messages).
+  // Take over arrives in Phase 4.
+  END_REASON_BUSY = 12;
+}
+
+// What a device can do. The host uses only what both sides list.
+message Capabilities {
+  repeated VideoCodec codecs = 1;  // In order of preference.
+  uint32 max_width = 2;            // Pixels.
+  uint32 max_height = 3;
+  uint32 max_frame_rate = 4;
+  bool audio = 5;
+  bool tablet = 6;
+  bool clipboard = 7;
+  bool long_term_reference = 8;
+}
+
+// iPad to Mac, first message on `control`.
+message Hello {
+  uint32 protocol_major = 1;
+  uint32 protocol_minor = 2;
+  string app_version = 3;
+  string device_model = 4;
+  string os_version = 5;
+  Capabilities capabilities = 6;
+  bytes session_nonce = 7;
+  bytes identity_signature = 8;  // Binds the device key to this connection. Empty until Phase 3.
+  bytes resume_token = 9;        // Optional.
+  string device_name = 10;
+}
+
+// Mac to iPad, after it accepts Hello.
+message HelloAck {
+  uint32 protocol_major = 1;
+  uint32 protocol_minor = 2;
+  string app_version = 3;
+  string device_model = 4;
+  string os_version = 5;
+  Capabilities capabilities = 6;
+  bytes session_nonce = 7;
+  bytes identity_signature = 8;  // Empty until Phase 3.
+  bytes resume_token = 9;        // New token for this session.
+  string device_name = 10;
+}
+
+// iPad to Mac: what the iPad would like. The Mac decides.
+message StreamConfig {
+  uint32 display_id = 1;
+  uint32 width = 2;   // Pixels. Zero means the host picks.
+  uint32 height = 3;
+  uint32 frame_rate = 4;
+  repeated VideoCodec codec_preference = 5;
+  QualityPreference quality = 6;
+  bool audio = 7;
+}
+
+// A rectangle in stream pixels.
+message Rect {
+  float x = 1;
+  float y = 2;
+  float width = 3;
+  float height = 4;
+}
+
+// Mac to iPad: what the Mac actually applied. Authoritative.
+message StreamConfigApplied {
+  uint32 display_id = 1;
+  uint32 width = 2;
+  uint32 height = 3;
+  uint32 frame_rate = 4;
+  VideoCodec codec = 5;
+  QualityPreference quality = 6;
+  bool audio = 7;
+  Rect content_rect = 8;  // Where the display sits inside the stream frame.
+  float scale = 9;        // Stream pixels per display point.
+}
+
+// One Mac display (plan section 10).
+message Display {
+  uint32 id = 1;  // CGDirectDisplayID.
+  string name = 2;
+  uint32 pixel_width = 3;
+  uint32 pixel_height = 4;
+  double point_width = 5;
+  double point_height = 6;
+  double scale = 7;
+  double origin_x = 8;  // In the global coordinate space, points.
+  double origin_y = 9;
+  bool main = 10;
+  bool built_in = 11;
+  double refresh_rate = 12;
+}
+
+// Mac to iPad, on connect and whenever the display configuration changes.
+message DisplayList {
+  repeated Display displays = 1;
+}
+
+// Both ways, once a second. Round trip time and clock offset.
+message Ping {
+  uint64 sender_time_us = 1;
+}
+
+message Pong {
+  uint64 ping_sender_time_us = 1;  // Echoed from the Ping.
+  uint64 receiver_time_us = 2;     // The ponging side's clock when the Ping arrived.
+}
+
+// Either way: a clean end.
+message Bye {
+  EndReason reason = 1;
+  string detail = 2;  // Diagnostics only. Never shown raw.
+}

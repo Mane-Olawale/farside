@@ -18,10 +18,11 @@ public struct RenderTimes: Sendable {
 /// Draws decoded 4:2:0 video-range frames into a `CAMetalLayer` with a BT.709 conversion and an
 /// aspect fit (plan section 8, renderer). Textures wrap the decoded planes without a copy.
 ///
-/// `draw` blocks until a drawable is free, so call it from a dedicated render queue and gate it
-/// with a `LatestSlot`. Phase 2 adds the viewport transform and the cursor quad.
+/// The product presents through `VideoPresenter`, which paces from a display link and never
+/// waits for a drawable. `draw` is the spike rigs' path: it blocks in `nextDrawable`, which
+/// section 8 no longer allows in the product. Phase 2 adds the viewport transform and the cursor.
 public final class MetalRenderer: @unchecked Sendable {
-    private let layer: CAMetalLayer
+    let layer: CAMetalLayer
     private let device: MTLDevice
     private let queue: MTLCommandQueue
     private let pipeline: MTLRenderPipelineState
@@ -66,26 +67,32 @@ public final class MetalRenderer: @unchecked Sendable {
         drawableSize.withLock { $0 = size }
     }
 
-    /// Draws one frame. `presented` runs once the frame reached the display, or is not called if
-    /// the frame was never shown.
+    /// Spike rigs only: waits for a drawable, then draws one frame. `presented` runs once the frame
+    /// reached the display, or is not called if the frame was never shown.
     public func draw(_ pixels: CVPixelBuffer, presented: @escaping @Sendable (RenderTimes) -> Void) {
-        let target = drawableSize.withLock { $0 }
+        guard drawableSize.withLock({ $0.width > 0 && $0.height > 0 }), let drawable = layer.nextDrawable() else { return }
+        _ = encode(pixels, into: drawable, acquiredTicks: HostClock.now(), presented: presented)
+    }
+
+    /// Draws one frame into a drawable the caller already holds and presents it. Returns false if
+    /// nothing was submitted.
+    func encode(_ pixels: CVPixelBuffer, into drawable: CAMetalDrawable, acquiredTicks acquired: UInt64,
+                presented: @escaping @Sendable (RenderTimes) -> Void) -> Bool {
+        let target = CGSize(width: drawable.texture.width, height: drawable.texture.height)
         guard target.width > 0, target.height > 0,
               let luma = texture(pixels, plane: 0, format: .r8Unorm),
               let chroma = texture(pixels, plane: 1, format: .rg8Unorm),
               let lumaTexture = CVMetalTextureGetTexture(luma),
               let chromaTexture = CVMetalTextureGetTexture(chroma),
-              let drawable = layer.nextDrawable(),
               let buffer = queue.makeCommandBuffer()
-        else { return }
-        let acquired = HostClock.now()
+        else { return false }
 
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = drawable.texture
         pass.colorAttachments[0].loadAction = .clear
         pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         pass.colorAttachments[0].storeAction = .store
-        guard let encoder = buffer.makeRenderCommandEncoder(descriptor: pass) else { return }
+        guard let encoder = buffer.makeRenderCommandEncoder(descriptor: pass) else { return false }
 
         let videoAspect = Float(CVPixelBufferGetWidth(pixels)) / Float(CVPixelBufferGetHeight(pixels))
         let viewAspect = Float(target.width / target.height)
@@ -111,6 +118,7 @@ public final class MetalRenderer: @unchecked Sendable {
         buffer.present(drawable)
         keep.committed.withLock { $0 = HostClock.now() }
         buffer.commit()
+        return true
     }
 
     private func texture(_ pixels: CVPixelBuffer, plane: Int, format: MTLPixelFormat) -> CVMetalTexture? {
