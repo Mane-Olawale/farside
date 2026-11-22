@@ -48,7 +48,7 @@ final class ViewerController: UIViewController {
     private let log = Logger(subsystem: "app.farside.s3", category: "viewer")
     private let videoView = MetalLayerView()
     private let label = UILabel()
-    private var renderer: MetalRenderer?
+    private var presenter: VideoPresenter?
     private var browser: LANBrowser?
     private var signaling: SignalingConnection?
     private var session: WebRTCTransport?
@@ -72,10 +72,13 @@ final class ViewerController: UIViewController {
         label.text = "Looking for a Mac running S3Host…"
         view.addSubview(label)
 
-        guard let renderer = MetalRenderer(layer: videoView.metalLayer) else { return status("No Metal") }
-        self.renderer = renderer
-        videoView.onDrawableSize = { renderer.setDrawableSize($0) }
+        // Paced by the display link, never blocking for a drawable (plan section 8). Spike S3 used
+        // the blocking renderer and measured 36-43 ms from decoded to presented.
+        guard let presenter = VideoPresenter(layer: videoView.metalLayer) else { return status("No Metal") }
+        self.presenter = presenter
+        videoView.onDrawableSize = { presenter.setDrawableSize($0) }
         videoView.setNeedsLayout()
+        presenter.start()
 
         // Connects to the first Mac found, as the spike always did.
         let browser = LANBrowser(
@@ -121,12 +124,10 @@ final class ViewerController: UIViewController {
 
     private func startSession(playout mode: PlayoutMode, codecs: [VideoCodec], audio: Bool) {
         let playout = mode
-        guard session == nil, let renderer else { return }
+        guard session == nil, let presenter else { return }
         status("Session \(playout.rawValue), codecs \(codecs.map(\.rawValue))")
         let reader = self.reader
         let counters = self.counters
-        let slot = LatestSlot<(PixelBufferBox, UInt32?)>()
-        let renderQueue = DispatchQueue(label: "farside.viewer.render", qos: .userInteractive)
         let send = SendBox()
         var audioRole: AudioRole = .none
         if audio {
@@ -145,18 +146,6 @@ final class ViewerController: UIViewController {
             audioRole = .receive(output)
         }
 
-        @Sendable func render(_ first: (PixelBufferBox, UInt32?)) {
-            var item = first
-            while true {
-                let counter = item.1
-                renderer.draw(item.0.buffer) { _ in
-                    counters.presented()
-                    if let counter { send.echo(counter, .presented) }
-                }
-                guard let next = slot.finish() else { return }
-                item = next
-            }
-        }
 
         let log = self.log
         let session = WebRTCTransport(
@@ -181,7 +170,11 @@ final class ViewerController: UIViewController {
                         counter = r.read(pixels.buffer)
                         if let counter { send.echo(counter, .decoded) } else { counters.unreadable() }
                     }
-                    if let first = slot.offer((pixels, counter)) { renderQueue.async { render(first) } }
+                    let readable = counter != nil
+                    presenter.enqueue(pixels, tag: counter ?? 0) { tag, _ in
+                        counters.presented()
+                        if readable { send.echo(tag, .presented) }
+                    }
                 }))
         send.session = session
         self.session = session
