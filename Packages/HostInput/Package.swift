@@ -15,6 +15,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "HostInput", dependencies: ["InputModel"]),
-        .testTarget(name: "HostInputTests", dependencies: ["HostInput"]),
+        .testTarget(name: "HostInputTests", dependencies: ["HostInput", "InputModel"]),
     ]
 )

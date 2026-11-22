@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import HostCapture
+import HostInput
 import MediaCore
 import Observation
 import os
@@ -40,6 +41,9 @@ final class HostController {
 
     private(set) var reachability: Reachability = .starting
     private(set) var screenRecording: ScreenRecordingStatus = .checking
+    /// Accessibility, which lets the host post the iPad's input (plan section 6). Unlike Screen
+    /// Recording, a grant applies to the running app.
+    private(set) var accessibility = EventInjector.hasPostAccess
     private(set) var localNetwork: LocalNetworkStatus = .unconfirmed
     private(set) var sessionState: SessionState = .idle
     private(set) var clientName: String?
@@ -109,6 +113,19 @@ final class HostController {
         changed()
     }
 
+    func refreshAccessibility() {
+        let now = EventInjector.hasPostAccess
+        guard now != accessibility else { return }
+        accessibility = now
+        log.info("accessibility: \(now ? "granted" : "missing", privacy: .public)")
+        changed()
+    }
+
+    func requestAccessibility() {
+        EventInjector.requestPostAccess()
+        openSettings(.accessibility)
+    }
+
     func requestScreenRecording() {
         ScreenRecordingAccess.request()
         restartSuggested = true
@@ -118,6 +135,7 @@ final class HostController {
     enum SettingsPane: String {
         case screenRecording = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
         case localNetwork = "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork"
+        case accessibility = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
         case airDrop = "x-apple.systempreferences:com.apple.AirDrop-Handoff-Settings.extension"
         case displays = "x-apple.systempreferences:com.apple.Displays-Settings.extension"
     }
@@ -293,6 +311,7 @@ final class HostController {
         case .idle, .ended: break
         }
         if screenRecording == .missing || screenRecording == .revoked { return "Needs Screen Recording access" }
+        if !accessibility { return "Needs Accessibility access for input" }
         switch reachability {
         case .starting: return "Starting…"
         case .reachable: return "Reachable on this network"
@@ -301,7 +320,8 @@ final class HostController {
     }
 
     var needsAttention: Bool {
-        screenRecording == .missing || screenRecording == .revoked || { if case .blocked = localNetwork { true } else { false } }()
+        screenRecording == .missing || screenRecording == .revoked || !accessibility
+            || { if case .blocked = localNetwork { true } else { false } }()
     }
 
     private func changed() { onChange?() }

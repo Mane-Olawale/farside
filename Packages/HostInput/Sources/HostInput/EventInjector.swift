@@ -2,6 +2,7 @@
 import ApplicationServices
 import CoreGraphics
 import Foundation
+import IOKit.pwr_mgt
 
 /// A scroll as the iPad sends it (plan section 9, event model).
 public struct ScrollInput: Sendable {
@@ -34,6 +35,8 @@ public final class EventInjector: @unchecked Sendable {
     public private(set) var held = HeldInputs()
     private let source: CGEventSource
     private var lastLocation: CGPoint
+    /// The user-activity assertion, reused for every declaration and released with the session.
+    private var activityAssertion: IOPMAssertionID = 0
 
     public init?(tag: Int64 = EventInjector.defaultTag) {
         guard let source = CGEventSource(stateID: .hidSystemState) else { return nil }
@@ -54,16 +57,21 @@ public final class EventInjector: @unchecked Sendable {
     /// Moves the pointer to `point` in global display points. Posts a dragged event while a
     /// button is held, because apps do not treat moved events as drags.
     public func move(to point: CGPoint) {
+        move(to: point, dragging: held.dragButton)
+    }
+
+    /// Moves the pointer, posting the dragged event type for `drag` when a button is held.
+    public func move(to point: CGPoint, dragging drag: MouseButton?) {
         let type: CGEventType
         let button: CGMouseButton
-        switch held.dragButton {
+        switch drag {
         case .left?: (type, button) = (.leftMouseDragged, .left)
         case .right?: (type, button) = (.rightMouseDragged, .right)
         case .some: (type, button) = (.otherMouseDragged, .center)
         case nil: (type, button) = (.mouseMoved, .left)
         }
         post(CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: point, mouseButton: button)) { event in
-            if let other = held.dragButton, other.number > 1 {
+            if let other = drag, other.number > 1 {
                 event.setIntegerValueField(.mouseEventButtonNumber, value: Int64(other.number))
             }
         }
@@ -113,11 +121,25 @@ public final class EventInjector: @unchecked Sendable {
     /// Posts a key by macOS virtual key code. Modifier keys post as keys too, which makes the
     /// system send the flags-changed events apps expect. With `flags` nil the event takes the
     /// modifier state the HID source already holds.
-    public func key(_ code: UInt16, down: Bool, flags: CGEventFlags? = nil) {
+    public func key(_ code: UInt16, down: Bool, flags: CGEventFlags? = nil, isRepeat: Bool = false) {
         held.key(code, down: down)
         post(CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: down)) { event in
             if let flags { event.flags = flags }
+            if isRepeat { event.setIntegerValueField(.keyboardEventAutorepeat, value: 1) }
         }
+    }
+
+    /// Tells macOS a person is using the Mac, which wakes a sleeping display and resets the idle
+    /// timer (plan section 9: the first input wakes the display). Reuses one assertion, as the
+    /// API asks; `endUserActivity` releases it.
+    public func declareUserActivity() {
+        IOPMAssertionDeclareUserActivity("Farside input" as CFString, kIOPMUserActiveLocal, &activityAssertion)
+    }
+
+    public func endUserActivity() {
+        guard activityAssertion != 0 else { return }
+        IOPMAssertionRelease(activityAssertion)
+        activityAssertion = 0
     }
 
     /// Types `text` as keyboard events carrying Unicode strings, in chunks that never split a

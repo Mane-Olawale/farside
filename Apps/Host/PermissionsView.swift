@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// The permission checklist (plan section 6). Phase 1 covers Screen Recording and Local Network;
-/// Accessibility and the login item arrive with input (Phase 2) and the LaunchAgent (Phase 4).
+/// The permission checklist (plan section 6): Screen Recording, Accessibility and Local Network.
+/// The login item arrives with the LaunchAgent (Phase 4).
 struct PermissionsView: View {
     let controller: HostController
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Farside Host needs two permissions to show this Mac on your iPad.")
+            Text("Farside Host needs three permissions to show and control this Mac from your iPad.")
                 .font(.headline)
 
             row(title: "Screen Recording",
@@ -20,6 +20,16 @@ struct PermissionsView: View {
                         Button("Open Settings") { controller.openSettings(.screenRecording) }
                     case .granted, .checking:
                         EmptyView()
+                    }
+                })
+
+            row(title: "Accessibility",
+                why: "Lets your iPad's touches, keyboard and pointer control this Mac.",
+                state: controller.accessibility ? ("Allowed", .green, "checkmark.circle.fill")
+                                                : ("Not allowed", .orange, "exclamationmark.circle.fill"),
+                actions: {
+                    if !controller.accessibility {
+                        Button("Allow…") { controller.requestAccessibility() }
                     }
                 })
 
@@ -76,6 +86,7 @@ struct PermissionsView: View {
             while !Task.isCancelled {
                 await controller.refreshScreenRecording()
                 controller.refreshPeerToPeer()
+                controller.refreshAccessibility()
                 try? await Task.sleep(for: .seconds(5))
             }
         }
