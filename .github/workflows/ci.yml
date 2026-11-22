@@ -20,7 +20,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Select Xcode 26
         run: |
@@ -29,7 +29,7 @@ jobs:
           swift --version
 
       # SwiftPM build products and the pinned WebRTC binary (46 MB) per package.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: Packages/*/.build
           key: spm-${{ runner.os }}-${{ hashFiles('Packages/*/Package.swift', 'Packages/*/Package.resolved') }}
@@ -43,7 +43,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Select Xcode 26
         run: |
@@ -55,7 +55,7 @@ jobs:
           brew install xcodegen
           xcodegen --version
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .build/DerivedData/SourcePackages
           key: spm-xcode-${{ runner.os }}-${{ hashFiles('Packages/*/Package.swift', 'project.yml') }}
