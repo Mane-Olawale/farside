@@ -40,6 +40,8 @@ final class HostController {
     }
 
     private(set) var reachability: Reachability = .starting
+    /// The port the advertiser got, for the address shown in the menu.
+    private(set) var listenPort: UInt16?
     private(set) var screenRecording: ScreenRecordingStatus = .checking
     /// Accessibility, which lets the host post the iPad's input (plan section 6). Unlike Screen
     /// Recording, a grant applies to the running app.
@@ -174,7 +176,9 @@ final class HostController {
     private func advertiserChanged(_ state: LANAdvertiser.State) {
         switch state {
         case .starting: reachability = .starting
-        case .ready: reachability = .reachable
+        case .ready(let port):
+            reachability = .reachable
+            listenPort = port
         case .waiting(let reason):
             reachability = .notReachable("Waiting for the network")
             localNetwork = .blocked(reason)
@@ -351,6 +355,36 @@ final class HostController {
     var needsAttention: Bool {
         screenRecording == .missing || screenRecording == .revoked || !accessibility
             || { if case .blocked = localNetwork { true } else { false } }()
+    }
+
+    /// What to type in the iPad's Connect by Address: this Mac's address on its main network, and
+    /// the port only when it is not the default.
+    var connectAddress: String? {
+        guard let ip = Self.primaryIPv4() else { return nil }
+        guard let port = listenPort, port != LAN.defaultPort else { return ip }
+        return "\(ip):\(port)"
+    }
+
+    /// The first IPv4 address on an active Wi-Fi or Ethernet interface (en0, en1, …).
+    static func primaryIPv4() -> String? {
+        var list: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&list) == 0, let first = list else { return nil }
+        defer { freeifaddrs(list) }
+        var candidates: [(name: String, ip: String)] = []
+        for pointer in sequence(first: first, next: { $0.pointee.ifa_next }) {
+            let entry = pointer.pointee
+            guard let address = entry.ifa_addr, address.pointee.sa_family == UInt8(AF_INET),
+                  entry.ifa_flags & UInt32(IFF_UP) != 0, entry.ifa_flags & UInt32(IFF_LOOPBACK) == 0
+            else { continue }
+            let name = String(cString: entry.ifa_name)
+            guard name.hasPrefix("en") || name.hasPrefix("utun") else { continue }
+            var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            guard getnameinfo(address, socklen_t(address.pointee.sa_len), &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST) == 0
+            else { continue }
+            candidates.append((name, String(cString: host)))
+        }
+        // The LAN first; a VPN tunnel (utun) after.
+        return (candidates.first { $0.name.hasPrefix("en") } ?? candidates.first)?.ip
     }
 
     private func changed() { onChange?() }

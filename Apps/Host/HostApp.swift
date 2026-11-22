@@ -57,6 +57,12 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let status = NSMenuItem(title: controller.statusLine, action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
+        if let address = controller.connectAddress {
+            let item = NSMenuItem(title: "Address: \(address)", action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            item.toolTip = "Type this in Connect by Address on the iPad, for example over a VPN"
+            menu.addItem(item)
+        }
         menu.addItem(.separator())
         if controller.isInSession {
             menu.addItem(item("Disconnect", #selector(disconnect)))
