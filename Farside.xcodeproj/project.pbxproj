@@ -36,6 +36,7 @@
 		6441C6517B83772A155F587D /* HostIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA929D4216BC300CADD388F /* HostIdentity.swift */; };
 		671D889CA00755B2A63E31F6 /* HostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0997DD3EDAE2468F015B13 /* HostApp.swift */; };
 		67E6FE973622BDD60530BFCE /* S3ViewerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 156ED8758A27FE94D7140E5B /* S3ViewerApp.swift */; };
+		6F631857D8289CFC639894A4 /* DeviceListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D871B555B2BD9F543640702B /* DeviceListModel.swift */; };
 		70B914864F2D7B44A116DCF5 /* HostInput in Frameworks */ = {isa = PBXBuildFile; productRef = FDBC6306268CB71E07FD08FF /* HostInput */; };
 		74621C0CF0107C61973B47A7 /* SessionTransportWebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = D2FD3071F6D134CA9428ABAC /* SessionTransportWebRTC */; };
 		7996C35595C632974D8E7EA0 /* Recorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792198A418C3513F25560AA9 /* Recorder.swift */; };
@@ -74,13 +75,16 @@
 		E41B9D16E21A61F8914623C3 /* ProbeMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98F21FDD1D45C214B111F91 /* ProbeMessages.swift */; };
 		E6A4BB7E1C01D1261BC3BE66 /* HostCapture in Frameworks */ = {isa = PBXBuildFile; productRef = 52F1BDE67436458A59F29928 /* HostCapture */; };
 		E8E52BAEB122247ABA85AE1F /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 94B301C41134980121F03E25 /* Telemetry */; };
+		E9A46775198433B62D090EDB /* ConnectionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03136313D352ABEA4B336614 /* ConnectionModel.swift */; };
 		ED32CEF3B8690FF70E052743 /* HostMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = 959B17A4BE9EF2D80D41DF9A /* HostMedia.swift */; };
+		F83B7E00227A0C5913D25F76 /* SessionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD16B6752507F70D5A529064 /* SessionScreen.swift */; };
 		FC12AC0188B6BA54AC6D4C51 /* uninstall-check-agent.sh in Resources */ = {isa = PBXBuildFile; fileRef = 4C080699EA4E470A78BD467A /* uninstall-check-agent.sh */; };
 		FCC4FB51ED0E45FD11CB810A /* ClientVideo in Frameworks */ = {isa = PBXBuildFile; productRef = 73A8A944701905CAF3208222 /* ClientVideo */; };
 		FF9065BA137F2F84D1D8539F /* HostCapture in Frameworks */ = {isa = PBXBuildFile; productRef = 3D7112D88BEE0BBD16BDD356 /* HostCapture */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		03136313D352ABEA4B336614 /* ConnectionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionModel.swift; sourceTree = "<group>"; };
 		05D98625E52E2E1441B06C66 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		09C3F58AE13FBF4A206FFE48 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
 		0D341F049742326D71509DC2 /* S3HostApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = S3HostApp.swift; sourceTree = "<group>"; };
@@ -125,9 +129,11 @@
 		B4B0A7DCE9BEA9A574904509 /* HostInput */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HostInput; path = Packages/HostInput; sourceTree = SOURCE_ROOT; };
 		B8485CB2081C60513A703379 /* Probe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Probe.swift; sourceTree = "<group>"; };
 		BA08CC933A1B3E6A161429C7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		BD16B6752507F70D5A529064 /* SessionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionScreen.swift; sourceTree = "<group>"; };
 		BE00E2DBD10AB35371F9EE96 /* ClientInput */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ClientInput; path = Packages/ClientInput; sourceTree = SOURCE_ROOT; };
 		C2D635D582A06B83727ED2DE /* HostController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostController.swift; sourceTree = "<group>"; };
 		D384A3AF48D770A8FE182D11 /* install-check-agent.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "install-check-agent.sh"; sourceTree = "<group>"; };
+		D871B555B2BD9F543640702B /* DeviceListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceListModel.swift; sourceTree = "<group>"; };
 		D98F21FDD1D45C214B111F91 /* ProbeMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeMessages.swift; sourceTree = "<group>"; };
 		DF9019F1ED7250AE095549DD /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 		E1E98D8634428C8545A6AFCD /* Host.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Host.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -306,7 +312,10 @@
 		31A728813F7041E29BE0E1B4 /* Client */ = {
 			isa = PBXGroup;
 			children = (
+				03136313D352ABEA4B336614 /* ConnectionModel.swift */,
+				D871B555B2BD9F543640702B /* DeviceListModel.swift */,
 				A21D5F5E79F14EE223EA7ACC /* FarsideApp.swift */,
+				BD16B6752507F70D5A529064 /* SessionScreen.swift */,
 			);
 			path = Client;
 			sourceTree = "<group>";
@@ -786,7 +795,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9A46775198433B62D090EDB /* ConnectionModel.swift in Sources */,
+				6F631857D8289CFC639894A4 /* DeviceListModel.swift in Sources */,
 				23863E09DADA8F4581AC7608 /* FarsideApp.swift in Sources */,
+				F83B7E00227A0C5913D25F76 /* SessionScreen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
