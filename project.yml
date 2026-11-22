@@ -54,6 +54,8 @@ targets:
     dependencies:
       - package: ClientVideo
       - package: ClientInput
+      - package: WireProtocol
+      - package: MediaCore
       - package: SessionTransport
         product: SessionTransport
       - package: SessionTransport
@@ -101,6 +103,8 @@ targets:
     dependencies:
       - package: HostCapture
       - package: HostInput
+      - package: WireProtocol
+      - package: MediaCore
       - package: SessionTransport
         product: SessionTransport
       - package: SessionTransport

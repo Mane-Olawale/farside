@@ -3,7 +3,7 @@ PROJECT = Farside.xcodeproj
 DERIVED = .build/DerivedData
 XCB = xcodebuild -project $(PROJECT) -derivedDataPath $(DERIVED) CODE_SIGNING_ALLOWED=NO
 
-.PHONY: generate test ci build build-client build-host build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up
+.PHONY: generate test ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up
 
 generate:
 	xcodegen generate
@@ -29,6 +29,19 @@ build-client: generate
 
 build-host: generate
 	$(XCB) -scheme Host -destination 'generic/platform=macOS' build
+
+# Signed with the team in Config/Local.xcconfig, so Screen Recording and Local Network grants
+# survive rebuilds (plan section 6, development notes). Release, as it will be measured.
+run-host: generate
+	xcodebuild -project $(PROJECT) -derivedDataPath $(DERIVED) -scheme Host -configuration Release \
+		-destination 'generic/platform=macOS' -allowProvisioningUpdates build
+	open "$(DERIVED)/Build/Products/Release/Farside Host.app"
+
+# IPAD is the device identifier from `xcrun devicectl list devices`.
+install-client: generate
+	xcodebuild -project $(PROJECT) -derivedDataPath $(DERIVED) -scheme Client -configuration Release \
+		-destination 'generic/platform=iOS' -allowProvisioningUpdates build
+	xcrun devicectl device install app --device $(IPAD) $(DERIVED)/Build/Products/Release-iphoneos/Farside.app
 
 build-testpattern: generate
 	$(XCB) -scheme TestPattern -destination 'generic/platform=macOS' build
