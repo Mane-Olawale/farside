@@ -55,6 +55,9 @@ targets:
       - package: ClientVideo
       - package: ClientInput
       - package: SessionTransport
+        product: SessionTransport
+      - package: SessionTransport
+        product: SessionTransportWebRTC
       - package: BackendClient
       - package: Pairing
       - package: Telemetry
@@ -99,6 +102,9 @@ targets:
       - package: HostCapture
       - package: HostInput
       - package: SessionTransport
+        product: SessionTransport
+      - package: SessionTransport
+        product: SessionTransportWebRTC
       - package: BackendClient
       - package: Pairing
       - package: Telemetry
@@ -210,6 +216,9 @@ targets:
       - package: HostCapture
       - package: ClientVideo
       - package: SessionTransport
+        product: SessionTransport
+      - package: SessionTransport
+        product: SessionTransportWebRTC
       - package: MediaCore
       - package: Telemetry
     settings:
@@ -239,6 +248,9 @@ targets:
     dependencies:
       - package: ClientVideo
       - package: SessionTransport
+        product: SessionTransport
+      - package: SessionTransport
+        product: SessionTransportWebRTC
       - package: MediaCore
       - package: Telemetry
     settings:

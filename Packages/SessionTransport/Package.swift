@@ -1,6 +1,11 @@
 // swift-tools-version: 6.2
 import PackageDescription
 
+// Two libraries (ADR 0003, plan section 5 rule 1):
+// - SessionTransport: the transport protocol, the session state machine, LAN discovery and
+//   signaling, and an in-memory transport for tests. No WebRTC.
+// - SessionTransportWebRTC: the WebRTC implementation. The only code in the repository that
+//   imports WebRTC, and nothing public in it mentions a WebRTC type.
 let package = Package(
     name: "SessionTransport",
     platforms: [
@@ -9,6 +14,7 @@ let package = Package(
     ],
     products: [
         .library(name: "SessionTransport", targets: ["SessionTransport"]),
+        .library(name: "SessionTransportWebRTC", targets: ["SessionTransportWebRTC"]),
     ],
     dependencies: [
         .package(path: "../WireProtocol"),
@@ -18,7 +24,9 @@ let package = Package(
         .package(url: "https://github.com/stasel/WebRTC.git", exact: "158.0.0"),
     ],
     targets: [
-        .target(name: "SessionTransport", dependencies: [
+        .target(name: "SessionTransport", dependencies: ["WireProtocol", "MediaCore"]),
+        .target(name: "SessionTransportWebRTC", dependencies: [
+            "SessionTransport",
             "WireProtocol",
             "MediaCore",
             "WebRTCAudioShim",
@@ -28,5 +36,6 @@ let package = Package(
             .product(name: "WebRTC", package: "WebRTC"),
         ]),
         .testTarget(name: "SessionTransportTests", dependencies: ["SessionTransport"]),
+        .testTarget(name: "SessionTransportWebRTCTests", dependencies: ["SessionTransportWebRTC", "SessionTransport"]),
     ]
 )

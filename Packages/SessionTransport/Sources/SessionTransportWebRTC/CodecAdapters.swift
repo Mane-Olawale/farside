@@ -1,5 +1,5 @@
-// SessionTransport protocol, WebRTC adapter, Bonjour discovery and LAN signaling. The only
-// package that imports WebRTC (ADR 0003).
+// Adapters between our VideoToolbox codecs and WebRTC's encoder, decoder, capturer and renderer
+// interfaces (plan section 5, rule 1; ADR 0003).
 import CoreVideo
 import Foundation
 import MediaCore
@@ -176,16 +176,16 @@ final class DecoderAdapter: NSObject, RTCVideoDecoder, @unchecked Sendable {
 
 final class DecoderFactory: NSObject, RTCVideoDecoderFactory, @unchecked Sendable {
     private let codecs: [VideoCodec]
-    private let make: @Sendable (VideoCodec) -> FrameDecoding
+    private let make: @Sendable (VideoCodec) -> FrameDecoding?
 
-    init(codecs: [VideoCodec], make: @escaping @Sendable (VideoCodec) -> FrameDecoding) {
+    init(codecs: [VideoCodec], make: @escaping @Sendable (VideoCodec) -> FrameDecoding?) {
         self.codecs = codecs
         self.make = make
     }
 
     func createDecoder(_ info: RTCVideoCodecInfo) -> (any RTCVideoDecoder)? {
-        guard let codec = CodecNames.codec(info.name), codecs.contains(codec) else { return nil }
-        return DecoderAdapter(codec: codec, decoder: make(codec))
+        guard let codec = CodecNames.codec(info.name), codecs.contains(codec), let decoder = make(codec) else { return nil }
+        return DecoderAdapter(codec: codec, decoder: decoder)
     }
 
     func supportedCodecs() -> [RTCVideoCodecInfo] { codecs.map(CodecNames.info) }

@@ -9,59 +9,65 @@
 /* Begin PBXBuildFile section */
 		0533E548596307814BECC6BE /* ClientVideo in Frameworks */ = {isa = PBXBuildFile; productRef = 7AE3588CA35D5B906991D244 /* ClientVideo */; };
 		0B89B673A79FF33EB0DC1C57 /* ProbeMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98F21FDD1D45C214B111F91 /* ProbeMessages.swift */; };
-		0BDB1FC62AE363EEF8C5143D /* BackendClient in Frameworks */ = {isa = PBXBuildFile; productRef = 6656C350FDF60FDB784FB0C5 /* BackendClient */; };
+		0BDB1FC62AE363EEF8C5143D /* SessionTransportWebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 7C4B51A965859983691B1254 /* SessionTransportWebRTC */; };
 		0C26E23539C9D92362AAE827 /* LoopbackApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4A577794B0A5A5DF0730A1 /* LoopbackApp.swift */; };
-		0E68CA05A95CE970D8F685BB /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 0A365AE11B1723128F0F0704 /* Telemetry */; };
+		0E68CA05A95CE970D8F685BB /* MediaCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6C5E6E9B3CA560C7C43365A9 /* MediaCore */; };
 		0EC665B9F97F4B5026B731A4 /* CodeReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3968D6C4E5DDCE05E626A946 /* CodeReader.swift */; };
 		1A3C64B397E9E4507ECC773A /* PatternView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98B06750574B57538F301F6 /* PatternView.swift */; };
 		1A56AD98DBAD13E4EE230CD4 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CCD62624AF6B5D7C0FF7E4E /* Carbon.framework */; };
 		1EF5F76201FA2E342535604B /* MediaCore in Frameworks */ = {isa = PBXBuildFile; productRef = EA9F23F2F12AE8DD52C38D63 /* MediaCore */; };
 		2078246693B18A6F42E881DD /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = A2A95D6A6139728F116BC176 /* Telemetry */; };
 		23863E09DADA8F4581AC7608 /* FarsideApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21D5F5E79F14EE223EA7ACC /* FarsideApp.swift */; };
+		28ED65297F309D3DC8EFA37D /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 0A365AE11B1723128F0F0704 /* Telemetry */; };
 		2D17FCEACCCA5FC34760523C /* HostCapture in Frameworks */ = {isa = PBXBuildFile; productRef = C8600B3E1BF95C1B5336305D /* HostCapture */; };
 		2F76C7D5C84E857B4E696370 /* PermissionProbeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68D094EB6D9DF716DB2E31B2 /* PermissionProbeApp.swift */; };
-		335ECAF1FC9F57B4C4AA4BDA /* MediaCore in Frameworks */ = {isa = PBXBuildFile; productRef = 92A22B1287351EC284B5E11E /* MediaCore */; };
-		34A4577D209AF6FAB755EB20 /* BackendClient in Frameworks */ = {isa = PBXBuildFile; productRef = EAC7D37B0AA82C510914D1A8 /* BackendClient */; };
+		335ECAF1FC9F57B4C4AA4BDA /* SessionTransportWebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 81AE9DF1F34D6F72FC813FEB /* SessionTransportWebRTC */; };
+		34A4577D209AF6FAB755EB20 /* SessionTransportWebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = D2FD3071F6D134CA9428ABAC /* SessionTransportWebRTC */; };
 		375567156BB9F0B013802023 /* SessionTransport in Frameworks */ = {isa = PBXBuildFile; productRef = 48E370EE182EF8E85BAF06CD /* SessionTransport */; };
+		38F489BD495141DFF0474FCF /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 67A39FEC0C68DC863EFB2370 /* Telemetry */; };
 		3CDF1A7DB48228965862747D /* PatternView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98B06750574B57538F301F6 /* PatternView.swift */; };
-		3E8BEED5029D135BA68091A8 /* Pairing in Frameworks */ = {isa = PBXBuildFile; productRef = 22297A79CE0233AF885C1312 /* Pairing */; };
+		3E8BEED5029D135BA68091A8 /* BackendClient in Frameworks */ = {isa = PBXBuildFile; productRef = 6656C350FDF60FDB784FB0C5 /* BackendClient */; };
 		49D59C2A6A42D4AB6382FC54 /* PatternView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98B06750574B57538F301F6 /* PatternView.swift */; };
 		4FD09795D6F1E3C0FC209FEE /* SessionTransport in Frameworks */ = {isa = PBXBuildFile; productRef = BB68FD03CD0176775EC6347F /* SessionTransport */; };
-		535494E88848B22ACA31065E /* Pairing in Frameworks */ = {isa = PBXBuildFile; productRef = 2852885D927FC670FF6BB795 /* Pairing */; };
+		535494E88848B22ACA31065E /* BackendClient in Frameworks */ = {isa = PBXBuildFile; productRef = EAC7D37B0AA82C510914D1A8 /* BackendClient */; };
 		583AE35C8C152B70AE58A209 /* LoopbackOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20F62F3484ECB5CD40C0340 /* LoopbackOptions.swift */; };
 		671D889CA00755B2A63E31F6 /* HostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0997DD3EDAE2468F015B13 /* HostApp.swift */; };
 		67E6FE973622BDD60530BFCE /* S3ViewerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 156ED8758A27FE94D7140E5B /* S3ViewerApp.swift */; };
 		70B914864F2D7B44A116DCF5 /* HostInput in Frameworks */ = {isa = PBXBuildFile; productRef = FDBC6306268CB71E07FD08FF /* HostInput */; };
-		74621C0CF0107C61973B47A7 /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 97A85F4C3F22032ABBA48DB2 /* Telemetry */; };
+		74621C0CF0107C61973B47A7 /* Pairing in Frameworks */ = {isa = PBXBuildFile; productRef = 2852885D927FC670FF6BB795 /* Pairing */; };
 		7996C35595C632974D8E7EA0 /* Recorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792198A418C3513F25560AA9 /* Recorder.swift */; };
 		7DF64AB3986995A09B70194D /* LockProbeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9492B6E160FB1BC17B134570 /* LockProbeApp.swift */; };
 		7E92A3735862000B5D0BED2B /* LoopbackStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438BD9F2B4AECA90FBB10A53 /* LoopbackStats.swift */; };
 		7ED79044C071B4B0D29309C7 /* ClientInput in Frameworks */ = {isa = PBXBuildFile; productRef = F779AAEF95AC169B2C6A485B /* ClientInput */; };
 		8073FC3CCF7C72443C10700E /* MediaCore in Frameworks */ = {isa = PBXBuildFile; productRef = CBD6E23A6BCCD0488C6C1F15 /* MediaCore */; };
+		830315D3AE11CE7CA0645A60 /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 97A85F4C3F22032ABBA48DB2 /* Telemetry */; };
 		8A24781BC8994958A263C2A0 /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 00FF55C29F37773664B8F7A0 /* Telemetry */; };
 		916141DFD791874E664104EA /* HostInput in Frameworks */ = {isa = PBXBuildFile; productRef = 80C4FDF2FB24F4A18FFC12EA /* HostInput */; };
 		921D7B1638696165B52B8ADD /* InputProbeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27F010CCC84FF366C4198BB7 /* InputProbeApp.swift */; };
 		94E36DBEE1924F41C0B48654 /* HostCapture in Frameworks */ = {isa = PBXBuildFile; productRef = F9FD15BD5FFF9CE1D634D645 /* HostCapture */; };
 		997A1663893669DEBC91945A /* SessionTransport in Frameworks */ = {isa = PBXBuildFile; productRef = 71C4972CA0A949A40F3F5542 /* SessionTransport */; };
+		99C2266FE7F35B402BB21231 /* install-check-agent.sh in Resources */ = {isa = PBXBuildFile; fileRef = D384A3AF48D770A8FE182D11 /* install-check-agent.sh */; };
 		9BAAFB104FA450B34973891B /* Probe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8485CB2081C60513A703379 /* Probe.swift */; };
 		A17F063713B5B84889F17AA1 /* CodeReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3968D6C4E5DDCE05E626A946 /* CodeReader.swift */; };
-		A78BBAFFDE4CAAA962AC0FB4 /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 67A39FEC0C68DC863EFB2370 /* Telemetry */; };
+		A78BBAFFDE4CAAA962AC0FB4 /* Pairing in Frameworks */ = {isa = PBXBuildFile; productRef = 22297A79CE0233AF885C1312 /* Pairing */; };
 		A88D21FB716C8B22D600F3A9 /* TestPatternApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68437C50C564C62D52557146 /* TestPatternApp.swift */; };
 		A9CB5844D5161AEEED999E56 /* LoopbackPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB9DCC56EADF521004DD7F7 /* LoopbackPipeline.swift */; };
 		AA8F85357A3FE10DC9E5F9FB /* HostInput in Frameworks */ = {isa = PBXBuildFile; productRef = FCB6EA076F7220856F09D9C5 /* HostInput */; };
 		AB7745AF5C666573DA7E0D98 /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = B1CEDC1433457A84D1A8CCC5 /* Telemetry */; };
 		AC873A7FBBE554A03A7ACED0 /* ClientVideo in Frameworks */ = {isa = PBXBuildFile; productRef = 207C6DFF4766E5727A0A2BC2 /* ClientVideo */; };
 		B05529B66080B956F938AD22 /* S3HostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D341F049742326D71509DC2 /* S3HostApp.swift */; };
-		BD1914DED61920138A69A0A3 /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 94B301C41134980121F03E25 /* Telemetry */; };
+		BD1914DED61920138A69A0A3 /* MediaCore in Frameworks */ = {isa = PBXBuildFile; productRef = 92A22B1287351EC284B5E11E /* MediaCore */; };
 		BE0775F4AE74F6C76BAA9693 /* InputLoggerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA4A301379C2BAA44F9EC89 /* InputLoggerApp.swift */; };
 		C2768F8EE5828810AAAE7B98 /* ClientVideo in Frameworks */ = {isa = PBXBuildFile; productRef = A01DD4CD1E8B927E13AA8BDC /* ClientVideo */; };
 		C952975BD0896C4F5D6790BB /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B3969F0C63D65B625DA3D6A2 /* GameController.framework */; };
 		CEC51280B9E787EE80DB99BA /* MetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 897F798E900AB07DE1AAB21C /* MetalView.swift */; };
 		DA3D1097BEBE3C7EF94D5158 /* MetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 897F798E900AB07DE1AAB21C /* MetalView.swift */; };
 		DB22157659A793B70C046A88 /* SessionTransport in Frameworks */ = {isa = PBXBuildFile; productRef = 2BACF52A93E415C3B22D84DF /* SessionTransport */; };
-		E124F037501E1E5C497446F3 /* MediaCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6C5E6E9B3CA560C7C43365A9 /* MediaCore */; };
+		E124F037501E1E5C497446F3 /* SessionTransportWebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = EE3372A99C38856B4479DF59 /* SessionTransportWebRTC */; };
 		E41B9D16E21A61F8914623C3 /* ProbeMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98F21FDD1D45C214B111F91 /* ProbeMessages.swift */; };
 		E6A4BB7E1C01D1261BC3BE66 /* HostCapture in Frameworks */ = {isa = PBXBuildFile; productRef = 52F1BDE67436458A59F29928 /* HostCapture */; };
+		E8E52BAEB122247ABA85AE1F /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 94B301C41134980121F03E25 /* Telemetry */; };
+		FC12AC0188B6BA54AC6D4C51 /* uninstall-check-agent.sh in Resources */ = {isa = PBXBuildFile; fileRef = 4C080699EA4E470A78BD467A /* uninstall-check-agent.sh */; };
 		FCC4FB51ED0E45FD11CB810A /* ClientVideo in Frameworks */ = {isa = PBXBuildFile; productRef = 73A8A944701905CAF3208222 /* ClientVideo */; };
 		FF9065BA137F2F84D1D8539F /* HostCapture in Frameworks */ = {isa = PBXBuildFile; productRef = 3D7112D88BEE0BBD16BDD356 /* HostCapture */; };
 /* End PBXBuildFile section */
@@ -82,6 +88,7 @@
 		3CCD62624AF6B5D7C0FF7E4E /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
 		3E8FA54F193B97A734FA1168 /* ClientVideo */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ClientVideo; path = Packages/ClientVideo; sourceTree = SOURCE_ROOT; };
 		438BD9F2B4AECA90FBB10A53 /* LoopbackStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopbackStats.swift; sourceTree = "<group>"; };
+		4C080699EA4E470A78BD467A /* uninstall-check-agent.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "uninstall-check-agent.sh"; sourceTree = "<group>"; };
 		4F2D88E635263065E4144AB3 /* Pairing */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Pairing; path = Packages/Pairing; sourceTree = SOURCE_ROOT; };
 		5150AF24938BD27D6CACA46F /* S3Host.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = S3Host.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B57978C343BAF237078A16B /* MediaCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MediaCore; path = Packages/MediaCore; sourceTree = SOURCE_ROOT; };
@@ -109,6 +116,7 @@
 		B8485CB2081C60513A703379 /* Probe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Probe.swift; sourceTree = "<group>"; };
 		BA08CC933A1B3E6A161429C7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		BE00E2DBD10AB35371F9EE96 /* ClientInput */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ClientInput; path = Packages/ClientInput; sourceTree = SOURCE_ROOT; };
+		D384A3AF48D770A8FE182D11 /* install-check-agent.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "install-check-agent.sh"; sourceTree = "<group>"; };
 		D98F21FDD1D45C214B111F91 /* ProbeMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeMessages.swift; sourceTree = "<group>"; };
 		DF9019F1ED7250AE095549DD /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 		E1E98D8634428C8545A6AFCD /* Host.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Host.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -128,9 +136,10 @@
 				E6A4BB7E1C01D1261BC3BE66 /* HostCapture in Frameworks */,
 				AA8F85357A3FE10DC9E5F9FB /* HostInput in Frameworks */,
 				DB22157659A793B70C046A88 /* SessionTransport in Frameworks */,
-				0BDB1FC62AE363EEF8C5143D /* BackendClient in Frameworks */,
-				3E8BEED5029D135BA68091A8 /* Pairing in Frameworks */,
-				A78BBAFFDE4CAAA962AC0FB4 /* Telemetry in Frameworks */,
+				0BDB1FC62AE363EEF8C5143D /* SessionTransportWebRTC in Frameworks */,
+				3E8BEED5029D135BA68091A8 /* BackendClient in Frameworks */,
+				A78BBAFFDE4CAAA962AC0FB4 /* Pairing in Frameworks */,
+				38F489BD495141DFF0474FCF /* Telemetry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -140,8 +149,9 @@
 			files = (
 				AC873A7FBBE554A03A7ACED0 /* ClientVideo in Frameworks */,
 				375567156BB9F0B013802023 /* SessionTransport in Frameworks */,
-				335ECAF1FC9F57B4C4AA4BDA /* MediaCore in Frameworks */,
-				BD1914DED61920138A69A0A3 /* Telemetry in Frameworks */,
+				335ECAF1FC9F57B4C4AA4BDA /* SessionTransportWebRTC in Frameworks */,
+				BD1914DED61920138A69A0A3 /* MediaCore in Frameworks */,
+				E8E52BAEB122247ABA85AE1F /* Telemetry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -168,8 +178,9 @@
 				94E36DBEE1924F41C0B48654 /* HostCapture in Frameworks */,
 				0533E548596307814BECC6BE /* ClientVideo in Frameworks */,
 				997A1663893669DEBC91945A /* SessionTransport in Frameworks */,
-				E124F037501E1E5C497446F3 /* MediaCore in Frameworks */,
-				0E68CA05A95CE970D8F685BB /* Telemetry in Frameworks */,
+				E124F037501E1E5C497446F3 /* SessionTransportWebRTC in Frameworks */,
+				0E68CA05A95CE970D8F685BB /* MediaCore in Frameworks */,
+				28ED65297F309D3DC8EFA37D /* Telemetry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -180,9 +191,10 @@
 				C2768F8EE5828810AAAE7B98 /* ClientVideo in Frameworks */,
 				7ED79044C071B4B0D29309C7 /* ClientInput in Frameworks */,
 				4FD09795D6F1E3C0FC209FEE /* SessionTransport in Frameworks */,
-				34A4577D209AF6FAB755EB20 /* BackendClient in Frameworks */,
-				535494E88848B22ACA31065E /* Pairing in Frameworks */,
-				74621C0CF0107C61973B47A7 /* Telemetry in Frameworks */,
+				34A4577D209AF6FAB755EB20 /* SessionTransportWebRTC in Frameworks */,
+				535494E88848B22ACA31065E /* BackendClient in Frameworks */,
+				74621C0CF0107C61973B47A7 /* Pairing in Frameworks */,
+				830315D3AE11CE7CA0645A60 /* Telemetry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -268,7 +280,9 @@
 			isa = PBXGroup;
 			children = (
 				5DA27FFA9FD7D9D70235E808 /* Info.plist */,
+				D384A3AF48D770A8FE182D11 /* install-check-agent.sh */,
 				68D094EB6D9DF716DB2E31B2 /* PermissionProbeApp.swift */,
+				4C080699EA4E470A78BD467A /* uninstall-check-agent.sh */,
 			);
 			path = PermissionProbe;
 			sourceTree = "<group>";
@@ -502,6 +516,7 @@
 			packageProductDependencies = (
 				207C6DFF4766E5727A0A2BC2 /* ClientVideo */,
 				48E370EE182EF8E85BAF06CD /* SessionTransport */,
+				81AE9DF1F34D6F72FC813FEB /* SessionTransportWebRTC */,
 				92A22B1287351EC284B5E11E /* MediaCore */,
 				94B301C41134980121F03E25 /* Telemetry */,
 			);
@@ -533,6 +548,7 @@
 			buildConfigurationList = A7F0C3AFACF5DF7D27155B0F /* Build configuration list for PBXNativeTarget "PermissionProbe" */;
 			buildPhases = (
 				D84E1C7454EA87CFBEBEC78C /* Sources */,
+				CBA64F6A701DAF9DE4D4C464 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -561,6 +577,7 @@
 				F9FD15BD5FFF9CE1D634D645 /* HostCapture */,
 				7AE3588CA35D5B906991D244 /* ClientVideo */,
 				71C4972CA0A949A40F3F5542 /* SessionTransport */,
+				EE3372A99C38856B4479DF59 /* SessionTransportWebRTC */,
 				6C5E6E9B3CA560C7C43365A9 /* MediaCore */,
 				0A365AE11B1723128F0F0704 /* Telemetry */,
 			);
@@ -584,6 +601,7 @@
 				52F1BDE67436458A59F29928 /* HostCapture */,
 				FCB6EA076F7220856F09D9C5 /* HostInput */,
 				2BACF52A93E415C3B22D84DF /* SessionTransport */,
+				7C4B51A965859983691B1254 /* SessionTransportWebRTC */,
 				6656C350FDF60FDB784FB0C5 /* BackendClient */,
 				22297A79CE0233AF885C1312 /* Pairing */,
 				67A39FEC0C68DC863EFB2370 /* Telemetry */,
@@ -626,6 +644,7 @@
 				A01DD4CD1E8B927E13AA8BDC /* ClientVideo */,
 				F779AAEF95AC169B2C6A485B /* ClientInput */,
 				BB68FD03CD0176775EC6347F /* SessionTransport */,
+				D2FD3071F6D134CA9428ABAC /* SessionTransportWebRTC */,
 				EAC7D37B0AA82C510914D1A8 /* BackendClient */,
 				2852885D927FC670FF6BB795 /* Pairing */,
 				97A85F4C3F22032ABBA48DB2 /* Telemetry */,
@@ -716,6 +735,18 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CBA64F6A701DAF9DE4D4C464 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				99C2266FE7F35B402BB21231 /* install-check-agent.sh in Resources */,
+				FC12AC0188B6BA54AC6D4C51 /* uninstall-check-agent.sh in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		2818A178BCB44E8E64213D34 /* Sources */ = {
@@ -1532,9 +1563,17 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = ClientVideo;
 		};
+		7C4B51A965859983691B1254 /* SessionTransportWebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SessionTransportWebRTC;
+		};
 		80C4FDF2FB24F4A18FFC12EA /* HostInput */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = HostInput;
+		};
+		81AE9DF1F34D6F72FC813FEB /* SessionTransportWebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SessionTransportWebRTC;
 		};
 		92A22B1287351EC284B5E11E /* MediaCore */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1572,6 +1611,10 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = MediaCore;
 		};
+		D2FD3071F6D134CA9428ABAC /* SessionTransportWebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SessionTransportWebRTC;
+		};
 		EA9F23F2F12AE8DD52C38D63 /* MediaCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MediaCore;
@@ -1579,6 +1622,10 @@
 		EAC7D37B0AA82C510914D1A8 /* BackendClient */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = BackendClient;
+		};
+		EE3372A99C38856B4479DF59 /* SessionTransportWebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SessionTransportWebRTC;
 		};
 		F779AAEF95AC169B2C6A485B /* ClientInput */ = {
 			isa = XCSwiftPackageProductDependency;
