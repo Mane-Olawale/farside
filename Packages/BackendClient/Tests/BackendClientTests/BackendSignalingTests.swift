@@ -52,6 +52,19 @@ import Testing
         #expect(messages.all == [.offer("v=0")])
     }
 
+    /// The Mac's accept and offer can arrive before the iPad's side starts listening.
+    @Test func envelopesThatArriveEarlyAreHeldForTheSession() throws {
+        let router = SignalRouter()
+        router.receive(try fromMac(.init(kind: .accept), seq: 1))
+        router.receive(try fromMac(.offer("v=0"), seq: 2))
+        router.receive(try fromMac(.offer("elsewhere"), session: "S2", seq: 1))
+        let signaling = clientSignaling(router: router)
+        let states = Inbox<SignalingConnection.State>(), messages = Inbox<SignalMessage>()
+        signaling.start(onState: { states.add($0) }, onMessage: { messages.add($0) })
+        #expect(states.all == [.connecting, .ready])
+        #expect(messages.all == [.offer("v=0")])
+    }
+
     @Test func ringsGoToTheRingHandler() throws {
         let router = SignalRouter()
         let rings = Inbox<SignalEnvelope>()

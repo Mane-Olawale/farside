@@ -65,8 +65,9 @@ public final class BackendSignaling: SignalingChannel, @unchecked Sendable {
             if role == .host { ready = true }
             return ready
         }
+        onState(readyNow ? .ready : .connecting)
+        // Registering hands over anything that arrived early, the Mac's accept included.
         router.register(self)
-        if readyNow { onState(.ready) } else { onState(.connecting) }
     }
 
     public func send(_ message: SignalMessage) {
@@ -131,6 +132,12 @@ public final class SignalRouter: @unchecked Sendable {
     private let lock = NSLock()
     private var sessions: [String: Weak] = [:]
     private var onRing: (@Sendable (SignalEnvelope) -> Void)?
+    /// Envelopes for a session nobody has registered yet. The backend rings the Mac as soon as
+    /// the iPad creates the session, so the Mac's accept can arrive before the iPad's side has
+    /// started listening. Held briefly, then dropped.
+    private var early: [String: [(envelope: SignalEnvelope, at: ContinuousClock.Instant)]] = [:]
+    static let holdEarly: Duration = .seconds(15)
+    static let maxEarly = 64
 
     private struct Weak {
         weak var signaling: BackendSignaling?
@@ -151,16 +158,27 @@ public final class SignalRouter: @unchecked Sendable {
             lock.withLock { onRing }?(envelope)
             return
         }
-        let target = lock.withLock { sessions[envelope.session]?.signaling }
+        let target = lock.withLock { () -> BackendSignaling? in
+            if let target = sessions[envelope.session]?.signaling { return target }
+            let now = ContinuousClock.now
+            early = early.mapValues { $0.filter { now - $0.at < Self.holdEarly } }.filter { !$0.value.isEmpty }
+            if early.values.reduce(0, { $0 + $1.count }) < Self.maxEarly {
+                early[envelope.session, default: []].append((envelope, now))
+            }
+            return nil
+        }
         target?.deliver(envelope)
     }
 
     func register(_ signaling: BackendSignaling) {
         guard let session = signaling.session else { return }
-        lock.withLock {
+        let held = lock.withLock { () -> [SignalEnvelope] in
             sessions = sessions.filter { $0.value.signaling != nil }
             sessions[session] = Weak(signaling: signaling)
+            let now = ContinuousClock.now
+            return (early.removeValue(forKey: session) ?? []).filter { now - $0.at < Self.holdEarly }.map(\.envelope)
         }
+        held.forEach(signaling.deliver)
     }
 
     func unregister(_ signaling: BackendSignaling) {

@@ -8,6 +8,7 @@ use App\Models\Device;
 use App\Models\Session;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 
 /**
@@ -26,6 +27,22 @@ class SignalController extends Controller
     private const PAIRING_TYPES = ['pair', 'paired'];
 
     public function __invoke(Request $request): JsonResponse
+    {
+        $response = $this->route($request);
+        if ($response->getStatusCode() >= 400) {
+            // Routing facts only: never the body.
+            $envelope = json_decode($request->getContent(), true);
+            Log::warning('signal refused', [
+                'status' => $response->getStatusCode(),
+                'type' => is_array($envelope) ? ($envelope['type'] ?? null) : null,
+                'session' => is_array($envelope) ? ($envelope['session'] ?? null) : null,
+            ]);
+        }
+
+        return $response;
+    }
+
+    private function route(Request $request): JsonResponse
     {
         $raw = $request->getContent();
         if (strlen($raw) > self::MAX_BYTES) {
