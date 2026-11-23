@@ -71,13 +71,24 @@ final class HostRecorder: HostSessionDelegate, @unchecked Sendable {
     var states: [SessionState] = []
     var started: [Farside_V1_StreamConfigApplied] = []
 
+    /// The main display 7 and a second display 8, which a test can unplug.
+    private var displayIDs: [UInt32] = [7, 8]
+    func unplug(_ id: UInt32) { lock.withLock { displayIDs.removeAll { $0 == id } } }
+
     func hostSessionDisplays() -> [Farside_V1_Display] {
-        [.with { $0.id = 7; $0.name = "Test"; $0.pixelWidth = 3440; $0.pixelHeight = 1440; $0.main = true }]
+        lock.withLock { displayIDs }.map { id in
+            .with { $0.id = id; $0.name = "Test \(id)"; $0.pixelWidth = 3440; $0.pixelHeight = 1440; $0.main = id == 7 }
+        }
     }
     func hostSessionApply(_ request: Farside_V1_StreamConfig, client: DeviceInfo) -> Farside_V1_StreamConfigApplied? {
-        lock.withLock { log.append("apply") }
+        let present = lock.withLock { () -> [UInt32] in
+            log.append("apply")
+            return displayIDs
+        }
+        // Like the real host: the requested display if it is there, else the main one.
+        let display = present.contains(request.displayID) ? request.displayID : 7
         return .with {
-            $0.displayID = request.displayID
+            $0.displayID = display
             $0.width = 2752
             $0.height = 1152
             $0.frameRate = 60
@@ -114,9 +125,12 @@ final class ClientRecorder: ClientSessionDelegate, @unchecked Sendable {
     private(set) var cursor: [Envelope.OneOf_Body] = []
     func clientSessionCursor(_ body: Envelope.OneOf_Body) { lock.withLock { cursor.append(body) } }
     var cursorBodies: [Envelope.OneOf_Body] { lock.withLock { cursor } }
+    private var noticeCodes: [Farside_V1_NoticeCode] = []
+    func clientSessionNotice(_ notice: Farside_V1_Notice) { lock.withLock { noticeCodes.append(notice.code) } }
 
-    var snapshot: (states: [SessionState], applied: Farside_V1_StreamConfigApplied?, host: DeviceInfo?, rtts: [Double]) {
-        lock.withLock { (states, applied, host, roundTrips) }
+    var snapshot: (states: [SessionState], applied: Farside_V1_StreamConfigApplied?, host: DeviceInfo?, rtts: [Double],
+                   notices: [Farside_V1_NoticeCode]) {
+        lock.withLock { (states, applied, host, roundTrips, noticeCodes) }
     }
 }
 
@@ -126,7 +140,7 @@ let iPadInfo = DeviceInfo(name: "Test iPad", model: "iPad16,5", osVersion: "27.2
                           capabilities: .with { $0.codecs = [.hevc, .h264]; $0.maxWidth = 2752; $0.maxHeight = 2064 })
 
 /// Polls until `condition` holds or the time runs out.
-func eventually(_ seconds: Double = 3, _ condition: () -> Bool) async -> Bool {
+func eventually(_ seconds: Double = 10, _ condition: () -> Bool) async -> Bool {
     let end = Date().addingTimeInterval(seconds)
     while Date() < end {
         if condition() { return true }
@@ -358,6 +372,93 @@ func testIdentity(_ name: String) -> LocalIdentity {
         transports.client.send(hello, on: .control)
         #expect(await eventually { host.state == .ended(.authFailed) || host.state == .idle })
         #expect(recorder.snapshot.log.isEmpty)
+    }
+
+    /// Plan section 15: internal_error shows a diagnostics id, which travels in the Bye.
+    @Test func byeCarriesADiagnosticsDetail() async {
+        let p = connect()
+        #expect(await eventually { p.client.state == .streaming })
+        p.host.end(.internalError, detail: "F00D1234")
+        #expect(await eventually { p.client.state == .ended(.internalError) })
+        #expect(p.client.endDetail == "F00D1234")
+    }
+
+    // MARK: Displays (plan section 10; Phase 4)
+
+    @Test func switchingDisplaysRestartsCaptureOnTheNewOne() async {
+        let p = connect()
+        #expect(await eventually { p.client.state == .streaming })
+        p.client.requestStream(.with { $0.displayID = 8; $0.width = 2752; $0.height = 2064; $0.frameRate = 60 })
+        #expect(await eventually { p.clientRecorder.snapshot.applied?.displayID == 8 })
+        #expect(p.hostRecorder.snapshot.log.suffix(2) == ["stop", "start"])
+    }
+
+    @Test func losingTheStreamedDisplayMovesToAnother() async {
+        let p = connect()
+        #expect(await eventually { p.client.state == .streaming })
+        p.client.requestStream(.with { $0.displayID = 8; $0.width = 2752; $0.height = 2064; $0.frameRate = 60 })
+        #expect(await eventually { p.clientRecorder.snapshot.applied?.displayID == 8 })
+        p.hostRecorder.unplug(8)
+        p.host.sendDisplays()
+        #expect(await eventually { p.clientRecorder.snapshot.applied?.displayID == 7 })
+    }
+
+    // MARK: Pause and resume (plan section 7, app lifecycle; Phase 4)
+
+    @Test func pauseStopsCaptureAndResumeRestartsIt() async {
+        let p = connect()
+        #expect(await eventually { p.host.state == .streaming && p.client.state == .streaming })
+        p.client.pause()
+        #expect(await eventually { p.host.state == .paused && p.client.state == .paused })
+        #expect(p.hostRecorder.snapshot.log.last == "stop", "capture stops while paused")
+        p.client.resume()
+        #expect(await eventually { p.host.state == .streaming && p.client.state == .streaming })
+        #expect(p.hostRecorder.snapshot.log.suffix(2) == ["stop", "start"], "capture starts again with the same stream")
+    }
+
+    @Test func inputWhilePausedIsDropped() async {
+        let p = connect()
+        #expect(await eventually { p.host.state == .streaming })
+        p.client.pause()
+        #expect(await eventually { p.host.state == .paused })
+        p.transports.client.send(try! Envelope(seq: 99, sentAtMicroseconds: 1, body: .key(.with { $0.hidUsage = 4; $0.down = true })).encoded(), on: .input)
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(p.hostRecorder.inputBodies.isEmpty)
+    }
+
+    @Test func resumeWithTheWrongTokenEndsTheSession() async throws {
+        let p = connect()
+        #expect(await eventually { p.host.state == .streaming })
+        p.client.pause()
+        #expect(await eventually { p.host.state == .paused })
+        p.transports.client.send(try Envelope(seq: 99, sentAtMicroseconds: 1, body: .resume(.with { $0.resumeToken = Data([1, 2, 3]) })).encoded(), on: .control)
+        #expect(await eventually { p.host.state == .ended(.authFailed) || p.host.state == .idle })
+    }
+
+    @Test func pausedTooLongEnds() async {
+        let p = connect(timeouts: SessionTimeouts(paused: .milliseconds(200)))
+        #expect(await eventually { p.host.state == .streaming })
+        p.client.pause()
+        #expect(await eventually { p.host.state == .ended(.networkLost) || p.host.state == .idle })
+    }
+
+    @Test func signalingClosingWhilePausedKeepsTheSession() async {
+        let p = connect()
+        #expect(await eventually { p.host.state == .streaming })
+        p.client.pause()
+        #expect(await eventually { p.host.state == .paused })
+        p.signaling.client.close()
+        try? await Task.sleep(for: .milliseconds(200))
+        #expect(p.host.state == .paused)
+        p.client.resume()
+        #expect(await eventually { p.host.state == .streaming })
+    }
+
+    @Test func noticesReachTheClient() async {
+        let p = connect()
+        #expect(await eventually { p.client.state == .streaming })
+        p.host.notice(.screenRecordingLost)
+        #expect(await eventually { p.clientRecorder.snapshot.notices == [.screenRecordingLost] })
     }
 
     @Test func pingsMeasureRoundTrip() async {

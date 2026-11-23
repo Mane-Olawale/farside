@@ -125,13 +125,26 @@ final class HostMedia: HostSessionDelegate, @unchecked Sendable {
                 if lock.withLock({ self.generation != started }) { await capture.stop() }
             } catch {
                 log.error("capture failed: \(String(describing: error), privacy: .public)")
-                onProblem(CaptureError.isPermissionDenied(error) ? .screenRecordingDenied : .captureFailed("\(error)"))
+                let denied = CaptureError.isPermissionDenied(error) ? true : await ScreenRecordingAccess.live() == false
+                onProblem(denied ? .screenRecordingDenied : .captureFailed("\(error)"))
             }
         }
     }
 
     private func captureStopped(_ error: Error, displayID: CGDirectDisplayID, settings: CaptureSettings, generation started: Int) {
         if CaptureError.isPermissionDenied(error) { return onProblem(.screenRecordingDenied) }
+        // A grant revoked mid-stream can stop capture with another error. Ask ScreenCaptureKit
+        // whether the grant is still there before restarting (spike S6: its answer is the live one).
+        Task { [self] in
+            if await ScreenRecordingAccess.live() == false {
+                onProblem(.screenRecordingDenied)
+            } else {
+                restartAfterStop(error, displayID: displayID, settings: settings, generation: started)
+            }
+        }
+    }
+
+    private func restartAfterStop(_ error: Error, displayID: CGDirectDisplayID, settings: CaptureSettings, generation started: Int) {
         let now = ContinuousClock.now
         let retry = lock.withLock { () -> Bool in
             guard generation == started else { return false }

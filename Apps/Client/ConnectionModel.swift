@@ -3,6 +3,7 @@ import ClientInput
 import ClientVideo
 import Foundation
 import MediaCore
+import Network
 import Observation
 import os
 import Pairing
@@ -53,6 +54,67 @@ final class ConnectionModel: Identifiable {
     var name: String { peer.name }
     /// Why connecting failed before a session existed, such as the service being down.
     private(set) var setupError: String?
+    /// The id to quote for an internal error: the Mac's, if its Bye carried one, else this
+    /// iPad's, which is logged here (plan section 15).
+    @ObservationIgnored private(set) lazy var diagnosticsID: String = {
+        if let detail = session?.endDetail, !detail.isEmpty { return detail }
+        let id = String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(8))
+        log.error("internal error, diagnostics id \(id, privacy: .public)")
+        return id
+    }()
+
+    /// The Mac's displays, for the toolbar's picker (plan section 10).
+    private(set) var displays: [Farside_V1_Display] = []
+
+    func displaysChanged(_ displays: [Farside_V1_Display]) {
+        self.displays = displays
+    }
+
+    /// Streams another of the Mac's displays, fitted to this screen.
+    func switchDisplay(_ id: UInt32) {
+        guard id != applied?.displayID else { return }
+        note("switching to display \(id)")
+        session?.requestStream(Self.streamRequest(displays: displays, screenPixels: screenPixels, preferred: id))
+    }
+
+    /// A notice from the Mac that does not end the session, shown over the picture.
+    private(set) var notice: String?
+    @ObservationIgnored private var noticeTask: Task<Void, Never>?
+
+    func show(_ notice: Farside_V1_Notice) {
+        let text: String? = switch notice.code {
+        case .accessibilityLost: "\(name) can't be controlled right now: Farside Host needs Accessibility. Allow it on the Mac, in Farside Host's Permissions."
+        case .screenRecordingLost: "\(name) stopped sharing its screen: Farside Host needs Screen Recording."
+        case .unspecified, .UNRECOGNIZED: nil
+        }
+        guard let text else { return }
+        self.notice = text
+        noticeTask?.cancel()
+        noticeTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(10))
+            guard !Task.isCancelled else { return }
+            self?.notice = nil
+        }
+    }
+
+    /// Reconnecting by itself after the network dropped (plan section 15, automatic retry).
+    private(set) var reconnecting = false
+    @ObservationIgnored private var everStreamed = false
+    @ObservationIgnored private var inForeground = true
+    @ObservationIgnored private var retryTask: Task<Void, Never>?
+    /// The display shown last, asked for again after a reconnect.
+    @ObservationIgnored private var lastDisplay: UInt32?
+    /// Ended by the person, so nothing reconnects.
+    @ObservationIgnored private var closedByUser = false
+    /// The next attempt asks the Mac to end its current session (plan section 6, take over).
+    @ObservationIgnored private var takeOverNext = false
+
+    /// The Mac was busy with another device: try again, ending that session.
+    func takeOver() {
+        takeOverNext = true
+        attempt()
+    }
+
     /// The session's recent log lines (states, path and transport errors; never input or
     /// keys), for the Details list when a connection fails.
     private(set) var recentLog: [String] = []
@@ -108,14 +170,18 @@ final class ConnectionModel: Identifiable {
         connectStarted = CACurrentMediaTime()
         switch route {
         case .lan(let host):
-            begin(signaling: SignalingConnection.connect(to: host.endpoint, credentials: credentials, peer: peer.id),
+            let takeOver = takeOverNext
+            takeOverNext = false
+            begin(signaling: SignalingConnection.connect(to: host.endpoint, credentials: credentials, peer: peer.id, takeOver: takeOver),
                   configuration: .lan)
         case let .internet(api, router, relay):
             let relayOnly = relay != .off
+            let takeOver = takeOverNext
+            takeOverNext = false
             state = .ringing
             Task {
                 do {
-                    let created = try await api.createSession(to: peer.id.rawValue)
+                    let created = try await api.createSession(to: peer.id.rawValue, takeOver: takeOver)
                     guard state == .ringing else { return }  // Cancelled meanwhile.
                     backendSession = created.session
                     let log = self.log
@@ -173,7 +239,7 @@ final class ConnectionModel: Identifiable {
 
         let cursor = CursorModel(presenter: presenter)
         self.cursor = cursor
-        let link = ClientLink(model: self)
+        let link = ClientLink(model: self, preferredDisplay: lastDisplay)
         link.cursor.withLock { $0 = cursor }
         let log = self.log
         let session = ClientSession(signaling: signaling, local: Self.deviceInfo(), delegate: link,
@@ -214,15 +280,88 @@ final class ConnectionModel: Identifiable {
     }
 
     func disconnect() {
+        closedByUser = true
+        retryTask?.cancel()
+        reconnecting = false
         if state.isActive { session?.end(.userEnded) }
         statsTask?.cancel()
         statsTask = nil
         presenter?.stop()
     }
 
-    /// The app left the foreground. Phase 4 pauses instead; Phase 1 ends the session cleanly.
+    /// The app left the foreground (plan section 7, app lifecycle): the session pauses, so the
+    /// Mac stops capture and releases held input, and resumes on return.
     func appBackgrounded() {
-        if state.isActive { session?.end(.userEnded) }
+        inForeground = false
+        retryTask?.cancel()
+        guard state == .streaming || state == .recovering, let session else { return }
+        // A few seconds to get the Pause out before iPadOS suspends the app.
+        let task = UIApplication.shared.beginBackgroundTask(withName: "Pause the session")
+        session.pause()
+        Task {
+            try? await Task.sleep(for: .seconds(1))
+            UIApplication.shared.endBackgroundTask(task)
+        }
+    }
+
+    func appForegrounded() {
+        inForeground = true
+        if state == .paused {
+            session?.resume()
+        } else if case .ended(let reason) = state, shouldReconnect(after: reason) {
+            reconnect()
+        }
+    }
+
+    private func shouldReconnect(after reason: SessionEndReason) -> Bool {
+        guard everStreamed, !closedByUser else { return false }
+        return [.networkLost, .pathTimeout].contains(reason)
+    }
+
+    /// Waits for a network, then connects again: up to 3 attempts, 1, 2 and 4 seconds apart, the
+    /// first as soon as the network is there (plan section 15, automatic retry).
+    private func reconnect() {
+        guard inForeground, !reconnecting else { return }
+        reconnecting = true
+        note("reconnecting")
+        retryTask = Task { [weak self] in
+            await Self.waitForNetwork()
+            for delay in [0.0, 1.0, 2.0, 4.0] {
+                try? await Task.sleep(for: .seconds(delay))
+                guard let self, !Task.isCancelled, self.reconnecting else { return }
+                self.attempt()
+                // Wait for this attempt to stream or end.
+                while !Task.isCancelled, self.state != .streaming, self.state.isActive {
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+                if self.state == .streaming { return }
+            }
+            self?.reconnecting = false
+        }
+    }
+
+    private func attempt() {
+        statsTask?.cancel()
+        statsTask = nil
+        transport?.close()
+        presenter?.stop()
+        session = nil
+        transport = nil
+        previous = nil
+        setupError = nil
+        start()
+    }
+
+    private static func waitForNetwork() async {
+        let monitor = NWPathMonitor()
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let once = OnceFlag()
+            monitor.pathUpdateHandler = { path in
+                if path.status == .satisfied, once.take() { continuation.resume() }
+            }
+            monitor.start(queue: DispatchQueue(label: "farside.client.path"))
+        }
+        monitor.cancel()
     }
 
     // MARK: From the session, via ClientLink
@@ -231,15 +370,21 @@ final class ConnectionModel: Identifiable {
         self.state = state
         if let host { hostInfo = host }
         UIApplication.shared.isIdleTimerDisabled = state.isActive
+        if state == .streaming {
+            everStreamed = true
+            reconnecting = false
+        }
         if case .ended(let reason) = state {
             log.info("ended: \(reason.rawValue, privacy: .public)")
             statsTask?.cancel()
             recordEnded(reason)
+            if shouldReconnect(after: reason) { reconnect() }
         }
     }
 
     func appliedChanged(_ applied: Farside_V1_StreamConfigApplied) {
         self.applied = applied
+        lastDisplay = applied.displayID
         cursor?.setDisplay(applied.displayID)
         onAppliedChange?()
     }
@@ -249,8 +394,10 @@ final class ConnectionModel: Identifiable {
     }
 
     /// What to ask the Mac for: its main display, fitted to this screen in pixels.
-    nonisolated static func streamRequest(displays: [Farside_V1_Display], screenPixels: CGSize) -> Farside_V1_StreamConfig {
-        let display = displays.first(where: \.main) ?? displays.first
+    /// The display shown before a reconnect if it is still there, else the main one.
+    nonisolated static func streamRequest(displays: [Farside_V1_Display], screenPixels: CGSize,
+                                          preferred: UInt32? = nil) -> Farside_V1_StreamConfig {
+        let display = displays.first { $0.id == preferred } ?? displays.first(where: \.main) ?? displays.first
         return .with {
             $0.displayID = display?.id ?? 0
             $0.width = UInt32(screenPixels.width)
@@ -406,22 +553,27 @@ private final class FirstFrameClock: @unchecked Sendable {
 private final class ClientLink: ClientSessionDelegate, @unchecked Sendable {
     private weak var model: ConnectionModel?
     private let screenPixels: CGSize
+    private let preferredDisplay: UInt32?
 
     @MainActor
-    init(model: ConnectionModel) {
+    init(model: ConnectionModel, preferredDisplay: UInt32?) {
         self.model = model
         screenPixels = model.screenPixels
+        self.preferredDisplay = preferredDisplay
     }
 
     func clientSessionChooseStream(displays: [Farside_V1_Display], host: DeviceInfo) -> Farside_V1_StreamConfig {
-        ConnectionModel.streamRequest(displays: displays, screenPixels: screenPixels)
+        Task { @MainActor [weak model] in model?.displaysChanged(displays) }
+        return ConnectionModel.streamRequest(displays: displays, screenPixels: screenPixels, preferred: preferredDisplay)
     }
 
     func clientSessionApplied(_ applied: Farside_V1_StreamConfigApplied) {
         Task { @MainActor [weak model] in model?.appliedChanged(applied) }
     }
 
-    func clientSessionDisplaysChanged(_ displays: [Farside_V1_Display]) {}
+    func clientSessionDisplaysChanged(_ displays: [Farside_V1_Display]) {
+        Task { @MainActor [weak model] in model?.displaysChanged(displays) }
+    }
 
     func clientSessionStateChanged(_ state: SessionState, host: DeviceInfo?) {
         Task { @MainActor [weak model] in model?.sessionChanged(state, host: host) }
@@ -435,6 +587,10 @@ private final class ClientLink: ClientSessionDelegate, @unchecked Sendable {
     let cursor = Mutex<CursorModel?>(nil)
     func clientSessionCursor(_ body: Envelope.OneOf_Body) {
         cursor.withLock { $0 }?.handle(body)
+    }
+
+    func clientSessionNotice(_ notice: Farside_V1_Notice) {
+        Task { @MainActor [weak model] in model?.show(notice) }
     }
 }
 
@@ -479,6 +635,18 @@ final class TimingLog: Sendable {
             } else {
                 try? data.write(to: url)
             }
+        }
+    }
+}
+
+/// True the first time only, for a continuation that may be resumed from several callbacks.
+final class OnceFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var taken = false
+    func take() -> Bool {
+        lock.withLock {
+            defer { taken = true }
+            return !taken
         }
     }
 }

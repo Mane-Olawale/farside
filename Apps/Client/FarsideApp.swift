@@ -13,8 +13,9 @@ struct FarsideApp: App {
             DevicesView(model: devices)
                 .onAppear { devices.start() }
                 .onChange(of: scenePhase) { _, phase in
-                    // Phase 4 pauses and resumes; in Phase 1 leaving the app ends the session.
+                    // Plan section 7, app lifecycle: pause in the background, resume on return.
                     if phase == .background { devices.connection?.appBackgrounded() }
+                    if phase == .active { devices.connection?.appForegrounded() }
                 }
         }
     }

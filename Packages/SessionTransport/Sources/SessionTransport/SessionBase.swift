@@ -44,6 +44,8 @@ public class SessionBase: @unchecked Sendable {
     private var stateHandler: (@Sendable (SessionState) -> Void)?
     /// Round trip from the last pong, in seconds.
     private(set) var lastRoundTrip: Double?
+    private var byeDetail: String?
+    private var peerByeDetail: String?
     /// The DTLS certificate fingerprints from this side's and the peer's session descriptions,
     /// which the identity handshake signs (plan section 14).
     private let certificates = Mutex<(local: String?, remote: String?)>((nil, nil))
@@ -83,6 +85,18 @@ public class SessionBase: @unchecked Sendable {
     public func end(_ reason: SessionEndReason) {
         queue.async { self.apply(.end(reason)) }
     }
+
+    /// Ends with a detail for diagnostics, such as an id both sides log (plan section 15,
+    /// internal_error). The Bye carries it; it is never shown raw.
+    public func end(_ reason: SessionEndReason, detail: String) {
+        queue.async {
+            self.byeDetail = detail
+            self.apply(.end(reason))
+        }
+    }
+
+    /// The detail from the peer's Bye, if it sent one.
+    public var endDetail: String? { queue.sync { peerByeDetail } }
 
     /// Ends the session and waits, up to `timeout`, until the Bye has been handed to the network.
     /// For app termination.
@@ -157,7 +171,10 @@ public class SessionBase: @unchecked Sendable {
         case .startPings: startPings()
         case .stopPings: stopPings()
         case .sendBye(let reason):
-            send(.bye(.with { $0.reason = reason.wire }))
+            send(.bye(.with {
+                $0.reason = reason.wire
+                $0.detail = byeDetail ?? ""
+            }))
             // Also over signaling, in case the data channel is not up or already gone.
             signaling.send(.bye(reason))
         case .closeTransport:
@@ -216,7 +233,11 @@ public class SessionBase: @unchecked Sendable {
             signalingReadied()
         case .closed(let reason):
             signalingReady = false
-            if machine.state.isActive {
+            if machine.state == .paused {
+                // A suspended iPad app may lose its signaling socket; the session lives on the
+                // data channels and waits for Resume until the paused timeout.
+                log("signaling closed while paused: \(reason ?? "by peer")")
+            } else if machine.state.isActive {
                 log("signaling closed: \(reason ?? "by peer")")
                 // On a LAN the socket closes at once when the other app quits or crashes, long
                 // before ICE gives up. Phase 4 keeps sessions alive through network changes.
@@ -305,6 +326,7 @@ public class SessionBase: @unchecked Sendable {
             lastRoundTrip = rtt
             onRoundTrip?(rtt)
         case .bye(let bye):
+            if !bye.detail.isEmpty { peerByeDetail = String(bye.detail.prefix(64)) }
             apply(.peerEnded(SessionEndReason(wire: bye.reason)))
         default:
             received(body, seq: envelope.seq)

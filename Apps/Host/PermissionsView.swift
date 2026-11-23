@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// The permission checklist (plan section 6): Screen Recording, Accessibility and Local Network.
-/// The login item arrives with the LaunchAgent (Phase 4).
+/// The permission checklist (plan section 6): Screen Recording, Accessibility, Local Network, and
+/// the login item.
 struct PermissionsView: View {
     let controller: HostController
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Farside Host needs three permissions to show and control this Mac from your iPad.")
+            Text("Farside Host needs these to show and control this Mac from your iPad.")
                 .font(.headline)
 
             row(title: "Screen Recording",
@@ -39,6 +39,22 @@ struct PermissionsView: View {
                 actions: {
                     Button("Open Settings") { controller.openSettings(.localNetwork) }
                 })
+
+            // Plan section 6, process model: starts at login, comes back after a crash.
+            TimelineView(.periodic(from: .now, by: 2)) { _ in
+                let item = controller.loginItem
+                row(title: "Open at Login",
+                    why: "Starts Farside Host when you log in and restarts it if it stops, so your iPad can always reach this Mac.",
+                    state: Self.loginState(item),
+                    actions: {
+                        switch item {
+                        case .enabled: EmptyView()
+                        case .needsApproval: Button("Open Login Items") { HostLaunch.openLoginItemsSettings() }
+                        case .off: Button("Turn On") { HostLaunch.setLoginItem(true) }
+                        case .unavailable: EmptyView()
+                        }
+                    })
+            }
 
             if controller.peerToPeer.anyOn {
                 Divider()
@@ -106,6 +122,15 @@ struct PermissionsView: View {
         case .unconfirmed: ("Not confirmed yet. It is confirmed the first time an iPad connects.", .secondary, "questionmark.circle")
         case .working: ("Working", .green, "checkmark.circle.fill")
         case .blocked: ("Blocked. Turn on Farside Host under Local Network.", .red, "xmark.circle.fill")
+        }
+    }
+
+    private static func loginState(_ item: HostLaunch.LoginItem) -> (String, Color, String) {
+        switch item {
+        case .enabled: ("On", .green, "checkmark.circle.fill")
+        case .needsApproval: ("Waiting for you to allow it", .orange, "exclamationmark.circle.fill")
+        case .off: ("Off", .orange, "exclamationmark.circle.fill")
+        case .unavailable: ("Unavailable", .red, "xmark.octagon.fill")
         }
     }
 

@@ -21,6 +21,17 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Task {
+            // A copy opened from Finder hands over to the one launchd runs (plan section 6).
+            guard await HostLaunch.shouldContinue() else { exit(0) }
+            begin()
+        }
+    }
+
+    private func begin() {
+        DistributedNotificationCenter.default().addObserver(forName: HostLaunch.showNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.showPermissions() }
+        }
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         let menu = NSMenu()
         menu.delegate = self
@@ -66,7 +77,12 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(.separator())
         if controller.isInSession {
-            menu.addItem(item("Disconnect", #selector(disconnect)))
+            let disconnect = item("Disconnect", #selector(disconnect))
+            disconnect.toolTip = "Or press \(HostControl.shortcutDescription) anywhere"
+            menu.addItem(disconnect)
+            let hint = NSMenuItem(title: "Shortcut: \(HostControl.shortcutDescription)", action: nil, keyEquivalent: "")
+            hint.isEnabled = false
+            menu.addItem(hint)
         }
         if let backend = controller.backend, backend.status != .unavailable {
             if backend.status == .signedOut {
@@ -78,6 +94,23 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 line.isEnabled = false
                 menu.addItem(line)
             }
+        }
+        let attended = item("Ask Before Each Session", #selector(toggleAttended))
+        attended.state = controller.control.attended ? .on : .off
+        attended.toolTip = "Someone at this Mac must allow each session"
+        menu.addItem(attended)
+        let lock = item("Lock When Session Ends", #selector(toggleLockOnEnd))
+        lock.state = controller.control.lockOnEnd ? .on : .off
+        lock.toolTip = "Recommended: whoever walks up to this Mac meets the lock screen"
+        menu.addItem(lock)
+        let keep = item("Keep This Mac Reachable", #selector(toggleKeepReachable))
+        keep.state = controller.power.keepReachable ? .on : .off
+        keep.toolTip = "Stops this Mac sleeping while idle, so your iPad can always reach it. The display may still sleep."
+        menu.addItem(keep)
+        if controller.power.keepReachable, let warning = controller.power.lidWarning {
+            let line = NSMenuItem(title: warning, action: nil, keyEquivalent: "")
+            line.isEnabled = false
+            menu.addItem(line)
         }
         if let pairing = controller.pairing {
             menu.addItem(item("Pair New Device…", #selector(pairNewDevice)))
@@ -120,6 +153,18 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func disconnect() {
         controller.disconnect()
+    }
+
+    @objc private func toggleAttended() {
+        controller.control.attended.toggle()
+    }
+
+    @objc private func toggleLockOnEnd() {
+        controller.control.lockOnEnd.toggle()
+    }
+
+    @objc private func toggleKeepReachable() {
+        controller.power.keepReachable.toggle()
     }
 
     @objc private func signIn() {

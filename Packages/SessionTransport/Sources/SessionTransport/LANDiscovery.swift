@@ -286,7 +286,7 @@ public final class SignalingConnection: @unchecked Sendable {
     }
 
     private enum Role {
-        case client
+        case client(takeOver: Bool)
         case host
         case pairing(PairingInvite, PairingRequest, @Sendable (PairingResult) -> Void)
     }
@@ -326,16 +326,19 @@ public final class SignalingConnection: @unchecked Sendable {
     }
 
     /// Client side: a new session to the paired Mac `peer`, found by `LANBrowser`.
-    public static func connect(to endpoint: NWEndpoint, credentials: SessionCredentials, peer: DeviceID) -> SignalingConnection {
+    /// `takeOver` asks the Mac to end its current session for this one.
+    public static func connect(to endpoint: NWEndpoint, credentials: SessionCredentials, peer: DeviceID,
+                               takeOver: Bool = false) -> SignalingConnection {
         SignalingConnection(connection: NWConnection(to: endpoint, using: LAN.parameters()), credentials: credentials,
-                            role: .client, session: UUID().uuidString, peer: peer)
+                            role: .client(takeOver: takeOver), session: UUID().uuidString, peer: peer)
     }
 
     /// Client side: a new session to a typed address (Connect by address, Phase 2). The WebSocket
     /// handshake needs a `ws://` URL endpoint here; a bare host-and-port endpoint is aborted by
     /// the WebSocket protocol before it is ready. Bonjour service endpoints work as they are.
-    public static func connect(host: String, port: UInt16, credentials: SessionCredentials, peer: DeviceID) -> SignalingConnection {
-        connect(to: endpoint(host: host, port: port), credentials: credentials, peer: peer)
+    public static func connect(host: String, port: UInt16, credentials: SessionCredentials, peer: DeviceID,
+                               takeOver: Bool = false) -> SignalingConnection {
+        connect(to: endpoint(host: host, port: port), credentials: credentials, peer: peer, takeOver: takeOver)
     }
 
     static func endpoint(host: String, port: UInt16) -> NWEndpoint {
@@ -363,6 +366,8 @@ public final class SignalingConnection: @unchecked Sendable {
     public var session: String? { ids.withLock { $0.session } }
     public var identity: LocalIdentity { credentials.identity }
     public var pinnedPeerKey: PublicKey? { peer.flatMap(credentials.pinnedKey(for:)) }
+    /// Host side: the admitted device asked to take over a session in progress.
+    public private(set) var requestsTakeOver = false
 
     /// For logs. Marked private by callers.
     public var remoteDescription: String { "\(connection.endpoint)" }
@@ -456,8 +461,8 @@ public final class SignalingConnection: @unchecked Sendable {
             switch state {
             case .ready:
                 switch self.role {
-                case .client:
-                    self.send(.init(kind: .join))
+                case .client(let takeOver):
+                    self.send(SignalMessage(kind: .join, body: SignalBody(takeOver: takeOver ? true : nil)))
                     self.onState?(.ready)
                 case .pairing(_, let request, _):
                     self.send(.pair(request))
@@ -520,6 +525,7 @@ public final class SignalingConnection: @unchecked Sendable {
             do {
                 let sender = try verifier.check(envelope, expected: nil, now: now)
                 ids.withLock { $0 = (envelope.session, sender) }
+                requestsTakeOver = envelope.body.takeOver == true
                 admitted = true
                 self.admission = nil
                 keepAlive = nil

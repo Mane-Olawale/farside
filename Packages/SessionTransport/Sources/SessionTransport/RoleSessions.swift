@@ -58,6 +58,8 @@ public final class HostSession: SessionBase, @unchecked Sendable {
     private weak var delegate: HostSessionDelegate?
     private var client: DeviceInfo?
     private var applied: Farside_V1_StreamConfigApplied?
+    /// The iPad's last request, applied again when the displays change.
+    private var lastRequest: Farside_V1_StreamConfig?
     /// Hello nonces seen by any session on this Mac, so none is accepted twice.
     static let nonces = Mutex(NonceGuard())
     private let resumeToken = Data((0..<16).map { _ in UInt8.random(in: 0...255) })
@@ -82,10 +84,17 @@ public final class HostSession: SessionBase, @unchecked Sendable {
     }
 
     /// Resends the display list, for example after a display was added.
+    /// The displays changed (plan section 10, displays): the iPad gets the new list, and if the
+    /// streamed display is gone the stream moves to another one, which the iPad is told.
     public func sendDisplays() {
         queue.async { [self] in
             guard machine.state == .streaming || machine.state == .securing, client != nil, let delegate else { return }
-            send(.displayList(.with { $0.displays = delegate.hostSessionDisplays() }))
+            let displays = delegate.hostSessionDisplays()
+            send(.displayList(.with { $0.displays = displays }))
+            if machine.state == .streaming, let request = lastRequest, let applied,
+               !displays.contains(where: { $0.id == applied.displayID }) {
+                configure(request)
+            }
         }
     }
 
@@ -113,21 +122,22 @@ public final class HostSession: SessionBase, @unchecked Sendable {
             }
             handle(hello)
 
+        case .pause:
+            // The iPad left the foreground: capture stops and held input is released (plan
+            // section 15, paused). The session waits for Resume until the paused timeout.
+            apply(.pause)
+
+        case .resume(let resume):
+            guard machine.state == .paused else { return }
+            guard resume.resumeToken == resumeToken else {
+                log("resume refused: wrong token")
+                return apply(.end(.authFailed))
+            }
+            apply(.resume)
+
         case .streamConfig(let request):
-            guard let client, machine.state == .securing || machine.state == .streaming else { return }
-            guard let applied = delegate?.hostSessionApply(request, client: client) else {
-                return apply(.end(.internalError))
-            }
-            let restart = machine.state == .streaming && self.applied != applied
-            self.applied = applied
-            send(.streamConfigApplied(applied))
-            if machine.state == .securing {
-                apply(.handshakeDone)
-            } else if restart {
-                // A new display or size while streaming.
-                delegate?.hostSessionStopMedia()
-                delegate?.hostSessionStartMedia(applied)
-            }
+            guard client != nil, machine.state == .securing || machine.state == .streaming else { return }
+            configure(request)
 
         default:
             break
@@ -179,6 +189,37 @@ public final class HostSession: SessionBase, @unchecked Sendable {
         }
     }
 
+    /// Applies a stream request: the delegate decides, the iPad hears the result, and capture
+    /// restarts if a stream is running and anything changed.
+    private func configure(_ request: Farside_V1_StreamConfig) {
+        guard let client else { return }
+        guard let applied = delegate?.hostSessionApply(request, client: client) else {
+            return apply(.end(.internalError))
+        }
+        lastRequest = request
+        let restart = machine.state == .streaming && self.applied != applied
+        self.applied = applied
+        send(.streamConfigApplied(applied))
+        if machine.state == .securing {
+            apply(.handshakeDone)
+        } else if restart {
+            // A new display or size while streaming.
+            delegate?.hostSessionStopMedia()
+            delegate?.hostSessionStartMedia(applied)
+        }
+    }
+
+    /// Tells the iPad something that does not end the session, such as a lost permission.
+    public func notice(_ code: Farside_V1_NoticeCode, detail: String = "") {
+        queue.async { [self] in
+            guard machine.state.isActive else { return }
+            send(.notice(.with {
+                $0.code = code
+                $0.detail = detail
+            }))
+        }
+    }
+
     override func effect(_ effect: SessionEffect) {
         switch effect {
         case .startMedia:
@@ -208,10 +249,13 @@ public protocol ClientSessionDelegate: AnyObject, Sendable {
     func clientSessionRoundTrip(_ seconds: Double)
     /// Cursor shape, state and position from the Mac (plan section 10), only while streaming.
     func clientSessionCursor(_ body: Envelope.OneOf_Body)
+    /// Something the Mac reports that does not end the session (plan section 15).
+    func clientSessionNotice(_ notice: Farside_V1_Notice)
 }
 
 extension ClientSessionDelegate {
     public func clientSessionCursor(_ body: Envelope.OneOf_Body) {}
+    public func clientSessionNotice(_ notice: Farside_V1_Notice) {}
 }
 
 /// The iPad's side of one session: sends Hello when the control channel opens, then asks for a
@@ -222,6 +266,8 @@ public final class ClientSession: SessionBase, @unchecked Sendable {
     private var host: DeviceInfo?
     private var requested = false
     private var helloNonce: Data?
+    /// This session's resume token from HelloAck, which Resume must carry.
+    private var hostResumeToken = Data()
 
     public init(signaling: SignalingChannel, local: DeviceInfo, delegate: ClientSessionDelegate,
                 timeouts: SessionTimeouts = .standard, log: @escaping @Sendable (String) -> Void = { _ in }) {
@@ -275,11 +321,42 @@ public final class ClientSession: SessionBase, @unchecked Sendable {
         return seq
     }
 
+    /// Asks for another display or size while streaming (plan section 10, displays). The
+    /// Mac's StreamConfigApplied answers, as at the start.
+    public func requestStream(_ config: Farside_V1_StreamConfig) {
+        queue.async { [self] in
+            guard machine.state == .streaming else { return }
+            send(.streamConfig(config))
+        }
+    }
+
+    /// The app left the foreground (plan section 7, app lifecycle): the Mac stops capture and
+    /// releases held input, and the session waits.
+    public func pause() {
+        queue.async { [self] in
+            guard machine.state == .streaming || machine.state == .recovering else { return }
+            send(.pause(.init()))
+            apply(.pause)
+        }
+    }
+
+    /// Back in the foreground: picks up where it paused, if the session is still there.
+    public func resume() {
+        queue.async { [self] in
+            guard machine.state == .paused else { return }
+            send(.resume(.with { $0.resumeToken = hostResumeToken }))
+            apply(.resume)
+        }
+    }
+
     override func received(_ body: Envelope.OneOf_Body, seq: UInt32) {
         switch body {
         case .cursorShape, .cursorState, .cursorPosition:
             guard machine.state == .streaming else { return }
             delegate?.clientSessionCursor(body)
+
+        case .notice(let notice):
+            delegate?.clientSessionNotice(notice)
 
         case .helloAck(let ack):
             guard machine.state == .securing, host == nil else { return }
@@ -294,6 +371,7 @@ public final class ClientSession: SessionBase, @unchecked Sendable {
                 return apply(.end(.authFailed))
             }
             host = DeviceInfo(ack: ack)
+            hostResumeToken = ack.resumeToken
             delegate?.clientSessionStateChanged(machine.state, host: host)
 
         case .displayList(let list):

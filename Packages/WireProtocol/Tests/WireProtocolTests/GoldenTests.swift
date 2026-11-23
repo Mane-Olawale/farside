@@ -14,10 +14,23 @@ import Testing
 /// Never rewrite a folder for a version that has shipped.
 @Suite struct GoldenTests {
     /// The folder `FARSIDE_WRITE_GOLDEN` writes.
-    static let currentVersion = "v1_1"
+    static let currentVersion = "v1_2"
 
     static let fixtures: [(version: String, name: String, envelope: Envelope)] =
         v1.map { ("v1", $0.name, $0.envelope) } + v1_1.map { ("v1_1", $0.name, $0.envelope) }
+        + v1_2.map { ("v1_2", $0.name, $0.envelope) }
+
+    /// 1.2: pause, resume and notices (Phase 4).
+    static let v1_2: [(name: String, envelope: Envelope)] = [
+        ("pause", Envelope(seq: 20, sentAtMicroseconds: 20_000_020, body: .pause(.init()))),
+        ("resume", Envelope(seq: 21, sentAtMicroseconds: 21_000_021, body: .resume(.with {
+            $0.resumeToken = Data((0..<16).map { UInt8($0) })
+        }))),
+        ("notice", Envelope(seq: 22, sentAtMicroseconds: 22_000_022, body: .notice(.with {
+            $0.code = .screenRecordingLost
+            $0.detail = "stream stopped by the system"
+        }))),
+    ]
 
     static let v1_1: [(name: String, envelope: Envelope)] = [
         ("pointer_move", Envelope(seq: 10, sentAtMicroseconds: 10_000_010, body: .pointerMove(.with {

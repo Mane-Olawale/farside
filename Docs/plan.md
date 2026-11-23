@@ -340,11 +340,11 @@ V1 uses a single process, because macOS ties privacy grants to one code identity
 | --- | --- |
 | Bundle | One app, one executable, `LSUIElement` set so there is no Dock icon |
 | Launch | A LaunchAgent plist inside the bundle, registered with `SMAppService.agent(plistName:)` |
-| Restart | `KeepAlive` in the plist, so launchd relaunches the app after a crash or self-exit |
+| Restart | `KeepAlive` with `SuccessfulExit` false, so launchd relaunches the app after a crash or a deliberate non-zero exit (the restart for a new permission), while Quit stays quit. `ThrottleInterval` 2 s |
 | Session type | `LimitLoadToSessionType` set to `Aqua`, so it runs only inside a logged-in graphical session |
 | Priority | `ProcessType` set to `Interactive`, plus a latency-critical activity during sessions to keep App Nap away |
 | UI | Status item, onboarding window, pairing window and settings window, all in the same process |
-| Second launch | Opening the app from Finder asks the running instance to show its window, then exits |
+| Second launch | Opening the app from Finder asks the running instance to show its window, then exits. The agent's environment marks the copy launchd runs; a copy opened another way registers the login item if needed, starts the agent with `launchctl kickstart`, and hands over |
 
 A split into a UI app and a separate agent talking over XPC is deferred. It only becomes necessary if login-window access is added in Phase 8, because that needs a privileged helper.
 
@@ -1191,6 +1191,8 @@ Connect by address uses the same path with a typed host name or IP. That makes t
 
 During any of these, the iPad keeps the last frame on screen with a reconnecting hint, and all held keys are released on the Mac.
 
+Decided in Phase 4: recovery is a fast fresh reconnect. On the LAN the signaling socket dies with the Wi-Fi, so the iPad waits for a network, then connects again at once and asks for the same display; the Mac is idle again within a second of the old session ending. The in-band path restart with a new offer is deferred to Phase 5, and built only if measurements show the reconnect is too slow over the internet.
+
 ### Firewall summary
 
 | Traffic | Destination | Port |
@@ -1849,6 +1851,19 @@ Exit criteria:
 4. Killing the host process brings it back and reachable within 10 s.
 5. After 8 idle hours, a connection still works on the first try.
 6. Revoking screen recording mid-session produces the right message on the iPad.
+
+Results (23 November 2026, M3 Pro Mac with an external display, iPad Pro M4, home Wi-Fi):
+
+| Check | Result |
+| --- | --- |
+| 1. Reachable after a reboot and login | Passed. Farside Host was running 36 s after boot finished, within the minute of login, and the iPad connected without touching the Mac. Before login (FileVault's password screen) the Mac cannot answer, as expected |
+| 2. iPad Wi-Fi off and on | Passed. The iPad reconnected by itself within the 3 s |
+| 3. 20 s in the background | Passed. The session paused and resumed within 2 s |
+| 4. Host killed | Passed. Back in 0.2 s and online with the backend 0.5 s later |
+| 5. 8 idle hours | To run overnight |
+| 6. Screen Recording revoked mid-session | Passed. The iPad says the Mac needs Screen Recording |
+
+Also tried on the devices: display switching, the disconnect shortcut, attended mode (allow and decline) and lock when the session ends. Take over is covered by tests only, as there is one iPad.
 
 ### Phase 5: Stream quality (weeks 14 to 16)
 

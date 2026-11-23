@@ -1,0 +1,63 @@
+# Both app builds, unsigned: Config/Local.xcconfig is not committed and nothing here needs a
+# grant or a signing identity.
+name: Apps
+
+# Runs only when a push or pull request changes something this workflow depends on. A change
+# to the docs or the deploy files alone runs nothing.
+on:
+  push:
+    paths:
+      - "Apps/**"
+      - "Packages/**"
+      - "Tools/**"
+      - "project.yml"
+      - "Config/**"
+      - "Makefile"
+      - ".github/workflows/apps.yml"
+  pull_request:
+    paths:
+      - "Apps/**"
+      - "Packages/**"
+      - "Tools/**"
+      - "project.yml"
+      - "Config/**"
+      - "Makefile"
+      - ".github/workflows/apps.yml"
+
+concurrency:
+  group: apps-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  apps:
+    name: App builds
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      - uses: actions/cache@v6
+        with:
+          path: .build/DerivedData/SourcePackages
+          key: spm-xcode-${{ runner.os }}-${{ hashFiles('Packages/*/Package.swift', 'project.yml') }}
+          restore-keys: spm-xcode-${{ runner.os }}-
+
+      # Unsigned builds: Config/Local.xcconfig is not committed, and the Makefile turns signing off.
+      - name: Build the iPad client
+        run: make build-client
+
+      - name: Build the Mac host
+        run: make build-host

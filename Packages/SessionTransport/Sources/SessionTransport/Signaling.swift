@@ -55,9 +55,13 @@ public struct SignalBody: Codable, Sendable, Equatable {
     public var extra: [String: String]?
     /// `pair` only.
     public var pairing: PairingRequest?
+    /// `join` and `ring`: end the Mac's current session and take this one (plan section 6, busy
+    /// and take over).
+    public var takeOver: Bool?
 
     public init(sdp: String? = nil, candidate: String? = nil, sdpMid: String? = nil, sdpMLineIndex: Int32? = nil,
-                reason: String? = nil, extra: [String: String]? = nil, pairing: PairingRequest? = nil) {
+                reason: String? = nil, extra: [String: String]? = nil, pairing: PairingRequest? = nil,
+                takeOver: Bool? = nil) {
         self.sdp = sdp
         self.candidate = candidate
         self.sdpMid = sdpMid
@@ -65,6 +69,7 @@ public struct SignalBody: Codable, Sendable, Equatable {
         self.reason = reason
         self.extra = extra
         self.pairing = pairing
+        self.takeOver = takeOver
     }
 }
 

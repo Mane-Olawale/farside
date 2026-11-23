@@ -79,6 +79,10 @@ final class HostController {
     }
     /// Sign-in and rings over the internet, when this build has a backend.
     @ObservationIgnored private(set) var backend: HostBackend?
+    /// Keep reachable, sleep and wake, and the lid warning (plan section 6).
+    @ObservationIgnored let power = HostPower()
+    /// Attended mode, the disconnect shortcut and lock on end (plan section 6).
+    @ObservationIgnored let control = HostControl()
     /// This Mac's identity and paired devices. Nil only if the keychain refused, in which case
     /// nothing can connect.
     @ObservationIgnored private(set) var pairing: HostPairing?
@@ -101,6 +105,23 @@ final class HostController {
         backend.onChange = onChange
         self.backend = backend
         backend.start()
+        control.registerShortcut { [weak self] in
+            guard let self, self.isBusy else { return }
+            self.log.info("disconnect shortcut")
+            self.disconnect()
+        }
+        power.start(
+            willSleep: { [weak self] in
+                guard let self else { return }
+                // Plan section 6: close the session cleanly and go offline before sleeping.
+                if let session, session.state.isActive { session.endAndFlush(.hostSleeping) }
+                self.backend?.pause()
+            },
+            didWake: { [weak self] in
+                guard let self else { return }
+                self.backend?.resume()
+                self.restartAdvertiserIfIdle()
+            })
         let advertiser = LANAdvertiser(
             credentials: pairing.credentials, name: HostIdentity.name,
             onConnection: { [weak self] connection in
@@ -178,6 +199,8 @@ final class HostController {
         guard now != accessibility else { return }
         accessibility = now
         log.info("accessibility: \(now ? "granted" : "missing", privacy: .public)")
+        // Without it the iPad can watch but not control (plan section 15): say so.
+        if !now, sessionState == .streaming { session?.notice(.accessibilityLost) }
         changed()
     }
 
@@ -206,16 +229,14 @@ final class HostController {
         changed()
     }
 
-    /// A new Screen Recording grant applies only to a new process (spike S6). Phase 4 lets
-    /// launchd do this; for now the app reopens itself.
+    /// A new Screen Recording grant applies only to a new process (spike S6); launchd starts
+    /// the app again.
     func relaunch() {
-        session?.endAndFlush(.hostEnded)
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, _ in
-            Task { @MainActor in NSApp.terminate(nil) }
-        }
+        HostLaunch.restart { session?.endAndFlush(.hostEnded) }
     }
+
+    /// Open at login (plan section 6): the LaunchAgent's state, for the checklist.
+    var loginItem: HostLaunch.LoginItem { HostLaunch.loginItem }
 
     private func advertiserChanged(_ state: LANAdvertiser.State) {
         switch state {
@@ -238,18 +259,39 @@ final class HostController {
 
     private func incoming(_ connection: SignalingConnection) {
         localNetwork = .working
-        // One session at a time (plan section 6). Take over arrives in Phase 4.
-        if isBusy {
-            log.info("busy: refusing a second connection")
-            connection.start(onState: { state in
-                if state == .ready { connection.sendAndClose(.reject(.busy)) }
-            }, onMessage: { _ in })
-            return
+        Task {
+            if let refusal = await admit(connection.peer, takeOver: connection.requestsTakeOver) {
+                connection.start(onState: { state in
+                    if state == .ready { connection.sendAndClose(.reject(refusal)) }
+                }, onMessage: { _ in })
+            } else {
+                begin(connection, configuration: .lan)
+            }
         }
-        begin(connection, configuration: .lan)
     }
 
     var isBusy: Bool { session?.state.isActive == true }
+
+    /// Decides whether a paired device's session may start (plan section 6, who may connect).
+    /// One session at a time: a second device is told busy unless it asked to take over. In
+    /// attended mode the person at the Mac is asked first. Returns the refusal, or nil to go
+    /// ahead, having ended the current session for a take over.
+    func admit(_ peer: DeviceID?, takeOver: Bool) async -> SessionEndReason? {
+        if isBusy, !takeOver {
+            log.info("busy: refusing a second connection")
+            return .busy
+        }
+        let name = peer.flatMap { id in pairing?.paired.first { $0.id == id }?.name } ?? "A paired device"
+        if control.attended {
+            let allowed = await control.ask(deviceName: name, takingOver: isBusy ? (clientName ?? "the current device") : nil)
+            guard allowed else { return .declined }
+        }
+        if isBusy {
+            log.info("taken over by another paired device")
+            session?.end(.takenOver)
+        }
+        return nil
+    }
 
     /// A paired device's session, over the LAN or through the backend.
     func begin(_ connection: any SignalingChannel, configuration: TransportConfiguration) {
@@ -259,11 +301,14 @@ final class HostController {
         })
         screenLocked = Self.isScreenLockedNow()
         input.setScreenLocked(screenLocked)
+        // Each session's callbacks carry its own media, so a session ended by a take over cannot
+        // clear the one that replaced it.
+        let owner = MediaBox()
         let media = HostMedia(
             input: input,
             cursorInVideo: !cursorShapesWork,
             onState: { [weak self] state, client in
-                Task { @MainActor in self?.sessionChanged(state, client: client) }
+                Task { @MainActor in self?.sessionChanged(state, client: client, media: owner.media) }
             },
             onProblem: { [weak self] problem in
                 Task { @MainActor in self?.mediaProblem(problem) }
@@ -278,13 +323,19 @@ final class HostController {
             },
             handlers: session.transportHandlers())
         media.use(transport)
+        owner.media = media
         self.media = media
         self.session = session
         self.transport = transport
         session.start(transport: transport)
     }
 
-    private func sessionChanged(_ state: SessionState, client: DeviceInfo?) {
+    private func sessionChanged(_ state: SessionState, client: DeviceInfo?, media from: HostMedia?) {
+        guard from === media else {
+            // An earlier session, ended by a take over: only let go of its transport.
+            if state == .idle { from?.use(nil) }
+            return
+        }
         sessionState = state
         clientName = client?.name
         switch state {
@@ -293,6 +344,7 @@ final class HostController {
                 startStatsLog()
                 refreshPeerToPeer()
                 refreshAccessibility()
+                if !accessibility { session?.notice(.accessibilityLost) }
             }
             if state == .streaming, cursor == nil, let session, let media {
                 let cursor = HostCursor(session: session, media: media)
@@ -315,6 +367,9 @@ final class HostController {
             media = nil
             clientName = nil
         case .ended(let reason):
+            // Whoever walks up to the Mac meets the lock screen (plan section 6). Not when the
+            // Mac is going to sleep, or when another device took over.
+            if control.lockOnEnd, ![.hostSleeping, .takenOver].contains(reason) { control.lockScreen() }
             endActivity()
             cursor?.stop()
             cursor = nil
@@ -367,14 +422,28 @@ final class HostController {
             screenRecording = ScreenRecordingAccess.atLaunch ? .revoked : .missing
             session?.end(.permissionMissing)
         case .captureFailed(let reason):
-            log.error("capture failed: \(reason, privacy: .public)")
-            session?.end(.internalError)
+            // An id in this log and on the iPad's screen, to find one from the other.
+            let id = Self.diagnosticsID()
+            log.error("capture failed, diagnostics id \(id, privacy: .public): \(reason, privacy: .public)")
+            session?.end(.internalError, detail: id)
         }
         changed()
     }
 
     func disconnect() {
         session?.end(.hostEnded)
+    }
+
+    /// Eight characters to quote: in the host's log and in the iPad's message (plan section 15).
+    static func diagnosticsID() -> String {
+        String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(8))
+    }
+
+    /// After wake the listener may be stale; with no session, start it again.
+    private func restartAdvertiserIfIdle() {
+        guard !isBusy, let advertiser else { return }
+        advertiser.stop()
+        do { try advertiser.start() } catch { log.error("listener did not restart: \(error.localizedDescription, privacy: .public)") }
     }
 
     /// For app termination: the iPad gets a Bye before this process exits.
@@ -444,4 +513,9 @@ final class HostController {
     }
 
     private func changed() { onChange?() }
+}
+
+/// The media of one session, filled in once it exists, for that session's own callbacks.
+final class MediaBox: @unchecked Sendable {
+    weak var media: HostMedia?
 }

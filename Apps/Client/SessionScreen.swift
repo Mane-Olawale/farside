@@ -24,6 +24,19 @@ struct SessionScreen: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
+            if let notice = connection.notice, connection.state == .streaming {
+                Label(notice, systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .background(.black.opacity(0.75), in: Capsule())
+                    .frame(maxWidth: 640)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, 32)
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+            }
+
             if connection.showsToolbar || connection.state != .streaming {
                 ControlPill(connection: connection, close: close)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -103,6 +116,26 @@ private struct ControlPill: View {
                     Image(systemName: "command.square")
                 }
                 .accessibilityLabel("Mac shortcuts")
+
+                // Plan section 7, floating toolbar: the display picker, when the Mac has more than one.
+                if connection.displays.count > 1 {
+                    Menu {
+                        ForEach(connection.displays, id: \.id) { display in
+                            Button {
+                                connection.switchDisplay(display.id)
+                            } label: {
+                                if display.id == connection.applied?.displayID {
+                                    Label(display.name, systemImage: "checkmark")
+                                } else {
+                                    Text(display.name)
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "display.2")
+                    }
+                    .accessibilityLabel("Display")
+                }
                 Divider().frame(height: 20)
             }
 
@@ -198,7 +231,7 @@ private struct StatusPanel: View {
             switch connection.state {
             case .idle, .ringing:
                 ProgressView()
-                Text("Connecting to \(connection.name)…").font(.headline)
+                Text(connection.reconnecting ? "Reconnecting to \(connection.name)…" : "Connecting to \(connection.name)…").font(.headline)
             case .negotiating:
                 ProgressView()
                 Text("Finding a path to \(connection.name)…").font(.headline)
@@ -210,8 +243,14 @@ private struct StatusPanel: View {
                 Text("Reconnecting…").font(.headline)
             case .paused:
                 Text("Paused").font(.headline)
+            case .ended where connection.reconnecting:
+                ProgressView()
+                Text("Connection lost. Reconnecting…").font(.headline)
+                Button("Cancel", action: close)
             case .ended(let reason):
-                if let message = connection.setupError ?? Self.message(reason, host: connection.name) {
+                if let message = connection.setupError ?? Self.message(reason, host: connection.name).map({
+                    reason == .internalError ? "\($0) Code \(connection.diagnosticsID)." : $0
+                }) {
                     Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundStyle(.yellow)
                     Text(message).font(.headline).multilineTextAlignment(.center)
                 }
@@ -227,7 +266,15 @@ private struct StatusPanel: View {
                     }
                     .font(.caption)
                 }
-                Button("Back to Macs", action: close).buttonStyle(.borderedProminent)
+                if reason == .busy {
+                    Button("Take Over") { connection.takeOver() }
+                        .buttonStyle(.borderedProminent)
+                }
+                if reason == .busy {
+                    Button("Back to Macs", action: close).buttonStyle(.bordered)
+                } else {
+                    Button("Back to Macs", action: close).buttonStyle(.borderedProminent)
+                }
             case .streaming:
                 EmptyView()
             }
@@ -247,12 +294,13 @@ private struct StatusPanel: View {
         case .ringTimeout: "\(host) did not answer. It may be asleep or offline."
         case .pathTimeout: "Could not reach \(host) from this network."
         case .authFailed: "\(host) could not prove its identity, or no longer trusts this iPad. Pair them again."
+        case .declined: "Someone at \(host) declined the session."
         case .notPaired: "\(host) has not paired with this iPad. Choose Pair New Device in Farside Host's menu on the Mac, then scan the code."
         case .versionMismatch: "Farside on this iPad and Farside Host on \(host) need the same version. Update the older one."
         case .permissionMissing: "\(host) needs Screen Recording access. Open Farside Host on the Mac to allow it."
         case .hostSleeping: "\(host) went to sleep."
         case .networkLost: "The connection to \(host) was lost."
-        case .internalError: "Something went wrong."
+        case .internalError: "Something went wrong."  // The diagnostics id is added by the caller.
         }
     }
 }
