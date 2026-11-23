@@ -132,8 +132,10 @@ struct DevicesView: View {
                     Text("Your Macs")
                 } footer: {
                     if let backend = model.backend, backend.status != .signedOut, backend.status != .unavailable {
-                        Toggle("Relay only (testing)", isOn: Binding(get: { backend.relayOnly }, set: { backend.relayOnly = $0 }))
-                            .font(.caption)
+                        Picker("Relay (testing)", selection: Binding(get: { backend.relayMode }, set: { backend.relayMode = $0 })) {
+                            ForEach(ClientBackend.RelayMode.allCases) { Text($0.title).tag($0) }
+                        }
+                        .font(.caption)
                     }
                 }
             }

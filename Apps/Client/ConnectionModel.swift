@@ -43,7 +43,7 @@ final class ConnectionModel: Identifiable {
         /// Same network, or a typed address: signaling straight to the Mac.
         case lan(DiscoveredHost)
         /// Anywhere else: signaling through the backend, with its STUN and TURN servers.
-        case internet(api: BackendAPI, router: SignalRouter, relayOnly: Bool)
+        case internet(api: BackendAPI, router: SignalRouter, relay: ClientBackend.RelayMode)
     }
 
     let id = UUID()
@@ -110,7 +110,8 @@ final class ConnectionModel: Identifiable {
         case .lan(let host):
             begin(signaling: SignalingConnection.connect(to: host.endpoint, credentials: credentials, peer: peer.id),
                   configuration: .lan)
-        case let .internet(api, router, relayOnly):
+        case let .internet(api, router, relay):
+            let relayOnly = relay != .off
             state = .ringing
             Task {
                 do {
@@ -123,12 +124,19 @@ final class ConnectionModel: Identifiable {
                                                          log.info("\(line, privacy: .public)")
                                                          Task { @MainActor in self?.note(line) }
                                                      })
-                    let servers = created.iceServers.map { TransportIceServer(urls: $0.urls, username: $0.username, credential: $0.credential) }
-                    note("internet path\(relayOnly ? ", relay only" : ""), \(servers.count) ICE servers")
+                    var servers = created.iceServers.map { TransportIceServer(urls: $0.urls, username: $0.username, credential: $0.credential) }
+                    if relay == .tls {
+                        // Only TURN over TLS on 443, as on a network that blocks UDP.
+                        servers = servers.compactMap { server in
+                            let urls = server.urls.filter { $0.hasPrefix("turns:") && $0.contains(":443") }
+                            return urls.isEmpty ? nil : TransportIceServer(urls: urls, username: server.username, credential: server.credential)
+                        }
+                    }
+                    note("internet path, relay \(relay.rawValue), \(servers.count) ICE servers")
                     let hasRelay = servers.contains { $0.urls.contains { $0.hasPrefix("turn:") || $0.hasPrefix("turns:") } }
                     if relayOnly, !hasRelay {
                         // Relay only allows no other path, so with no TURN server nothing can connect.
-                        setupError = "Relay only is on, but the Farside service has no relay server. Turn off Relay only under Your Macs."
+                        setupError = "Relay is forced on, but the Farside service has no relay server for it. Set Relay to Off under Your Macs."
                         signaling.close()
                         state = .ended(.internalError)
                         return

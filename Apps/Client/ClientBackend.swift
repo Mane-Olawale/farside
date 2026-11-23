@@ -24,9 +24,22 @@ final class ClientBackend {
     /// Devices on the account's presence channel, by device id.
     private(set) var online: [String: PresenceMember] = [:]
     private(set) var signInError: String?
-    /// Plan section 12: the debug switch that forces the relay.
-    var relayOnly = UserDefaults.standard.bool(forKey: "relayOnly") {
-        didSet { UserDefaults.standard.set(relayOnly, forKey: "relayOnly") }
+    /// Plan section 12: the debug switch that forces the relay. TLS keeps only the relay over
+    /// TLS on port 443, the path a network that blocks UDP leaves open (Phase 3 exit check 2).
+    enum RelayMode: String, CaseIterable, Identifiable {
+        case off, relay, tls
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .off: "Off"
+            case .relay: "Relay"
+            case .tls: "Relay over TLS (443)"
+            }
+        }
+    }
+
+    var relayMode = RelayMode(rawValue: UserDefaults.standard.string(forKey: "relayMode") ?? "") ?? .off {
+        didSet { UserDefaults.standard.set(relayMode.rawValue, forKey: "relayMode") }
     }
 
     @ObservationIgnored private(set) var link: BackendLink?

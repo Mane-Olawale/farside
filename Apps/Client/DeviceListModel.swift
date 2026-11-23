@@ -67,7 +67,7 @@ final class DeviceListModel {
     /// Connects to a paired Mac through the backend, from any network (plan section 12).
     func connectOverInternet(to peer: PairedPeer) {
         guard let backend, let link = backend.link else { return }
-        open(.internet(api: link.api, router: link.router, relayOnly: backend.relayOnly), peer: peer)
+        open(.internet(api: link.api, router: link.router, relay: backend.relayMode), peer: peer)
     }
 
     private func open(_ route: ConnectionModel.Route, peer: PairedPeer) {
