@@ -80,6 +80,18 @@ public final class BackendLink: Sendable {
         handlers.onStatus(.signedOut)
     }
 
+    /// Disconnects but stays signed in, for example before the Mac sleeps, so its presence
+    /// leaves at once. `start()` connects again.
+    public func pause() {
+        let socket = state.withLock { current -> BackendSocket? in
+            defer { current.socket = nil }
+            return current.socket
+        }
+        if let socket { Task { await socket.stop() } }
+        handlers.onPresence([:])
+        handlers.onStatus(.offline("paused"))
+    }
+
     /// Reconnects now, for example when the network changes.
     public func reconnect() {
         guard let socket = state.withLock({ $0.socket }) else { return }

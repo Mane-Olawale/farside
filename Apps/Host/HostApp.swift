@@ -90,6 +90,15 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 menu.addItem(line)
             }
         }
+        let keep = item("Keep This Mac Reachable", #selector(toggleKeepReachable))
+        keep.state = controller.power.keepReachable ? .on : .off
+        keep.toolTip = "Stops this Mac sleeping while idle, so your iPad can always reach it. The display may still sleep."
+        menu.addItem(keep)
+        if controller.power.keepReachable, let warning = controller.power.lidWarning {
+            let line = NSMenuItem(title: warning, action: nil, keyEquivalent: "")
+            line.isEnabled = false
+            menu.addItem(line)
+        }
         if let pairing = controller.pairing {
             menu.addItem(item("Pair New Device…", #selector(pairNewDevice)))
             let devices = NSMenuItem(title: "Paired Devices", action: nil, keyEquivalent: "")
@@ -131,6 +140,10 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func disconnect() {
         controller.disconnect()
+    }
+
+    @objc private func toggleKeepReachable() {
+        controller.power.keepReachable.toggle()
     }
 
     @objc private func signIn() {

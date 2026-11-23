@@ -79,6 +79,8 @@ final class HostController {
     }
     /// Sign-in and rings over the internet, when this build has a backend.
     @ObservationIgnored private(set) var backend: HostBackend?
+    /// Keep reachable, sleep and wake, and the lid warning (plan section 6).
+    @ObservationIgnored let power = HostPower()
     /// This Mac's identity and paired devices. Nil only if the keychain refused, in which case
     /// nothing can connect.
     @ObservationIgnored private(set) var pairing: HostPairing?
@@ -101,6 +103,18 @@ final class HostController {
         backend.onChange = onChange
         self.backend = backend
         backend.start()
+        power.start(
+            willSleep: { [weak self] in
+                guard let self else { return }
+                // Plan section 6: close the session cleanly and go offline before sleeping.
+                if let session, session.state.isActive { session.endAndFlush(.hostSleeping) }
+                self.backend?.pause()
+            },
+            didWake: { [weak self] in
+                guard let self else { return }
+                self.backend?.resume()
+                self.restartAdvertiserIfIdle()
+            })
         let advertiser = LANAdvertiser(
             credentials: pairing.credentials, name: HostIdentity.name,
             onConnection: { [weak self] connection in
@@ -373,6 +387,13 @@ final class HostController {
 
     func disconnect() {
         session?.end(.hostEnded)
+    }
+
+    /// After wake the listener may be stale; with no session, start it again.
+    private func restartAdvertiserIfIdle() {
+        guard !isBusy, let advertiser else { return }
+        advertiser.stop()
+        do { try advertiser.start() } catch { log.error("listener did not restart: \(error.localizedDescription, privacy: .public)") }
     }
 
     /// For app termination: the iPad gets a Bye before this process exits.

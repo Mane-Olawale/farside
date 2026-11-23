@@ -2,6 +2,7 @@ import AppKit
 import AuthenticationServices
 import BackendClient
 import Foundation
+import Network
 import Observation
 import os
 import Pairing
@@ -32,6 +33,8 @@ final class HostBackend {
     @ObservationIgnored private var window: NSWindow?
     @ObservationIgnored private let log = Logger(subsystem: "app.farside.host", category: "backend")
     @ObservationIgnored var onChange: (() -> Void)?
+    @ObservationIgnored private var pathMonitor: NWPathMonitor?
+    @ObservationIgnored private var lastPath: String?
 
     init(pairing: HostPairing, controller: HostController) {
         self.pairing = pairing
@@ -51,6 +54,31 @@ final class HostBackend {
     }
 
     func start() {
+        link?.start()
+        // A new network means a new socket now, not after the old one times out (plan section 6).
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            let summary = "\(path.status) \(path.availableInterfaces.map(\.name).sorted())"
+            Task { @MainActor in self?.pathChanged(summary, satisfied: path.status == .satisfied) }
+        }
+        monitor.start(queue: DispatchQueue(label: "farside.host.path"))
+        pathMonitor = monitor
+    }
+
+    private func pathChanged(_ summary: String, satisfied: Bool) {
+        defer { lastPath = summary }
+        guard let last = lastPath, last != summary, satisfied else { return }
+        log.info("network changed; reconnecting")
+        link?.reconnect()
+    }
+
+    /// Before sleep: leave the presence channel at once, so iPads see the Mac go offline.
+    func pause() {
+        link?.pause()
+    }
+
+    /// After wake: connect again straight away.
+    func resume() {
         link?.start()
     }
 
