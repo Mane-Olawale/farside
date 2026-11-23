@@ -216,7 +216,11 @@ public class SessionBase: @unchecked Sendable {
             signalingReadied()
         case .closed(let reason):
             signalingReady = false
-            if machine.state.isActive {
+            if machine.state == .paused {
+                // A suspended iPad app may lose its signaling socket; the session lives on the
+                // data channels and waits for Resume until the paused timeout.
+                log("signaling closed while paused: \(reason ?? "by peer")")
+            } else if machine.state.isActive {
                 log("signaling closed: \(reason ?? "by peer")")
                 // On a LAN the socket closes at once when the other app quits or crashes, long
                 // before ICE gives up. Phase 4 keeps sessions alive through network changes.

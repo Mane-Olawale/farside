@@ -1191,6 +1191,8 @@ Connect by address uses the same path with a typed host name or IP. That makes t
 
 During any of these, the iPad keeps the last frame on screen with a reconnecting hint, and all held keys are released on the Mac.
 
+Decided in Phase 4: recovery is a fast fresh reconnect. On the LAN the signaling socket dies with the Wi-Fi, so the iPad waits for a network, then connects again at once and asks for the same display; the Mac is idle again within a second of the old session ending. The in-band path restart with a new offer is deferred to Phase 5, and built only if measurements show the reconnect is too slow over the internet.
+
 ### Firewall summary
 
 | Traffic | Destination | Port |

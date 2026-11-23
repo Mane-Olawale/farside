@@ -198,7 +198,7 @@ private struct StatusPanel: View {
             switch connection.state {
             case .idle, .ringing:
                 ProgressView()
-                Text("Connecting to \(connection.name)…").font(.headline)
+                Text(connection.reconnecting ? "Reconnecting to \(connection.name)…" : "Connecting to \(connection.name)…").font(.headline)
             case .negotiating:
                 ProgressView()
                 Text("Finding a path to \(connection.name)…").font(.headline)
@@ -210,6 +210,10 @@ private struct StatusPanel: View {
                 Text("Reconnecting…").font(.headline)
             case .paused:
                 Text("Paused").font(.headline)
+            case .ended where connection.reconnecting:
+                ProgressView()
+                Text("Connection lost. Reconnecting…").font(.headline)
+                Button("Cancel", action: close)
             case .ended(let reason):
                 if let message = connection.setupError ?? Self.message(reason, host: connection.name) {
                     Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundStyle(.yellow)

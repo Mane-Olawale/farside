@@ -30,6 +30,9 @@ message Envelope {
     DisplayList display_list = 14;
     Ping ping = 15;
     Pong pong = 16;
+    Pause pause = 17;    // 1.2
+    Resume resume = 18;  // 1.2
+    Notice notice = 20;  // 1.2
     Bye bye = 23;
 
     // input, iPad to Mac (reliable `input` channel unless noted)
@@ -184,6 +187,28 @@ message Ping {
 message Pong {
   uint64 ping_sender_time_us = 1;  // Echoed from the Ping.
   uint64 receiver_time_us = 2;     // The ponging side's clock when the Ping arrived.
+}
+
+// iPad to Mac: the app left the foreground. The Mac stops capture and releases held input,
+// and keeps the session for a while (plan section 15, paused). 1.2.
+message Pause {}
+
+// iPad to Mac: back in the foreground. Accepted only with this session's resume token. 1.2.
+message Resume {
+  bytes resume_token = 1;
+}
+
+// Mac to iPad: something the person should know that does not end the session, such as a
+// permission lost mid-session (plan section 15). 1.2.
+message Notice {
+  NoticeCode code = 1;
+  string detail = 2;  // Diagnostics only. Never shown raw.
+}
+
+enum NoticeCode {
+  NOTICE_CODE_UNSPECIFIED = 0;
+  NOTICE_CODE_SCREEN_RECORDING_LOST = 1;
+  NOTICE_CODE_ACCESSIBILITY_LOST = 2;
 }
 
 // Either way: a clean end.

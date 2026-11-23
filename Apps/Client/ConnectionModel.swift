@@ -3,6 +3,7 @@ import ClientInput
 import ClientVideo
 import Foundation
 import MediaCore
+import Network
 import Observation
 import os
 import Pairing
@@ -53,6 +54,16 @@ final class ConnectionModel: Identifiable {
     var name: String { peer.name }
     /// Why connecting failed before a session existed, such as the service being down.
     private(set) var setupError: String?
+    /// Reconnecting by itself after the network dropped (plan section 15, automatic retry).
+    private(set) var reconnecting = false
+    @ObservationIgnored private var everStreamed = false
+    @ObservationIgnored private var inForeground = true
+    @ObservationIgnored private var retryTask: Task<Void, Never>?
+    /// The display shown last, asked for again after a reconnect.
+    @ObservationIgnored private var lastDisplay: UInt32?
+    /// Ended by the person, so nothing reconnects.
+    @ObservationIgnored private var closedByUser = false
+
     /// The session's recent log lines (states, path and transport errors; never input or
     /// keys), for the Details list when a connection fails.
     private(set) var recentLog: [String] = []
@@ -173,7 +184,7 @@ final class ConnectionModel: Identifiable {
 
         let cursor = CursorModel(presenter: presenter)
         self.cursor = cursor
-        let link = ClientLink(model: self)
+        let link = ClientLink(model: self, preferredDisplay: lastDisplay)
         link.cursor.withLock { $0 = cursor }
         let log = self.log
         let session = ClientSession(signaling: signaling, local: Self.deviceInfo(), delegate: link,
@@ -214,15 +225,88 @@ final class ConnectionModel: Identifiable {
     }
 
     func disconnect() {
+        closedByUser = true
+        retryTask?.cancel()
+        reconnecting = false
         if state.isActive { session?.end(.userEnded) }
         statsTask?.cancel()
         statsTask = nil
         presenter?.stop()
     }
 
-    /// The app left the foreground. Phase 4 pauses instead; Phase 1 ends the session cleanly.
+    /// The app left the foreground (plan section 7, app lifecycle): the session pauses, so the
+    /// Mac stops capture and releases held input, and resumes on return.
     func appBackgrounded() {
-        if state.isActive { session?.end(.userEnded) }
+        inForeground = false
+        retryTask?.cancel()
+        guard state == .streaming || state == .recovering, let session else { return }
+        // A few seconds to get the Pause out before iPadOS suspends the app.
+        let task = UIApplication.shared.beginBackgroundTask(withName: "Pause the session")
+        session.pause()
+        Task {
+            try? await Task.sleep(for: .seconds(1))
+            UIApplication.shared.endBackgroundTask(task)
+        }
+    }
+
+    func appForegrounded() {
+        inForeground = true
+        if state == .paused {
+            session?.resume()
+        } else if case .ended(let reason) = state, shouldReconnect(after: reason) {
+            reconnect()
+        }
+    }
+
+    private func shouldReconnect(after reason: SessionEndReason) -> Bool {
+        guard everStreamed, !closedByUser else { return false }
+        return [.networkLost, .pathTimeout].contains(reason)
+    }
+
+    /// Waits for a network, then connects again: up to 3 attempts, 1, 2 and 4 seconds apart, the
+    /// first as soon as the network is there (plan section 15, automatic retry).
+    private func reconnect() {
+        guard inForeground, !reconnecting else { return }
+        reconnecting = true
+        note("reconnecting")
+        retryTask = Task { [weak self] in
+            await Self.waitForNetwork()
+            for delay in [0.0, 1.0, 2.0, 4.0] {
+                try? await Task.sleep(for: .seconds(delay))
+                guard let self, !Task.isCancelled, self.reconnecting else { return }
+                self.attempt()
+                // Wait for this attempt to stream or end.
+                while !Task.isCancelled, self.state != .streaming, self.state.isActive {
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+                if self.state == .streaming { return }
+            }
+            self?.reconnecting = false
+        }
+    }
+
+    private func attempt() {
+        statsTask?.cancel()
+        statsTask = nil
+        transport?.close()
+        presenter?.stop()
+        session = nil
+        transport = nil
+        previous = nil
+        setupError = nil
+        start()
+    }
+
+    private static func waitForNetwork() async {
+        let monitor = NWPathMonitor()
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let once = OnceFlag()
+            monitor.pathUpdateHandler = { path in
+                if path.status == .satisfied, once.take() { continuation.resume() }
+            }
+            monitor.start(queue: DispatchQueue(label: "farside.client.path"))
+        }
+        monitor.cancel()
     }
 
     // MARK: From the session, via ClientLink
@@ -231,15 +315,21 @@ final class ConnectionModel: Identifiable {
         self.state = state
         if let host { hostInfo = host }
         UIApplication.shared.isIdleTimerDisabled = state.isActive
+        if state == .streaming {
+            everStreamed = true
+            reconnecting = false
+        }
         if case .ended(let reason) = state {
             log.info("ended: \(reason.rawValue, privacy: .public)")
             statsTask?.cancel()
             recordEnded(reason)
+            if shouldReconnect(after: reason) { reconnect() }
         }
     }
 
     func appliedChanged(_ applied: Farside_V1_StreamConfigApplied) {
         self.applied = applied
+        lastDisplay = applied.displayID
         cursor?.setDisplay(applied.displayID)
         onAppliedChange?()
     }
@@ -249,8 +339,10 @@ final class ConnectionModel: Identifiable {
     }
 
     /// What to ask the Mac for: its main display, fitted to this screen in pixels.
-    nonisolated static func streamRequest(displays: [Farside_V1_Display], screenPixels: CGSize) -> Farside_V1_StreamConfig {
-        let display = displays.first(where: \.main) ?? displays.first
+    /// The display shown before a reconnect if it is still there, else the main one.
+    nonisolated static func streamRequest(displays: [Farside_V1_Display], screenPixels: CGSize,
+                                          preferred: UInt32? = nil) -> Farside_V1_StreamConfig {
+        let display = displays.first { $0.id == preferred } ?? displays.first(where: \.main) ?? displays.first
         return .with {
             $0.displayID = display?.id ?? 0
             $0.width = UInt32(screenPixels.width)
@@ -406,15 +498,17 @@ private final class FirstFrameClock: @unchecked Sendable {
 private final class ClientLink: ClientSessionDelegate, @unchecked Sendable {
     private weak var model: ConnectionModel?
     private let screenPixels: CGSize
+    private let preferredDisplay: UInt32?
 
     @MainActor
-    init(model: ConnectionModel) {
+    init(model: ConnectionModel, preferredDisplay: UInt32?) {
         self.model = model
         screenPixels = model.screenPixels
+        self.preferredDisplay = preferredDisplay
     }
 
     func clientSessionChooseStream(displays: [Farside_V1_Display], host: DeviceInfo) -> Farside_V1_StreamConfig {
-        ConnectionModel.streamRequest(displays: displays, screenPixels: screenPixels)
+        ConnectionModel.streamRequest(displays: displays, screenPixels: screenPixels, preferred: preferredDisplay)
     }
 
     func clientSessionApplied(_ applied: Farside_V1_StreamConfigApplied) {
@@ -479,6 +573,18 @@ final class TimingLog: Sendable {
             } else {
                 try? data.write(to: url)
             }
+        }
+    }
+}
+
+/// True the first time only, for a continuation that may be resumed from several callbacks.
+final class OnceFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var taken = false
+    func take() -> Bool {
+        lock.withLock {
+            defer { taken = true }
+            return !taken
         }
     }
 }

@@ -114,9 +114,12 @@ final class ClientRecorder: ClientSessionDelegate, @unchecked Sendable {
     private(set) var cursor: [Envelope.OneOf_Body] = []
     func clientSessionCursor(_ body: Envelope.OneOf_Body) { lock.withLock { cursor.append(body) } }
     var cursorBodies: [Envelope.OneOf_Body] { lock.withLock { cursor } }
+    private var noticeCodes: [Farside_V1_NoticeCode] = []
+    func clientSessionNotice(_ notice: Farside_V1_Notice) { lock.withLock { noticeCodes.append(notice.code) } }
 
-    var snapshot: (states: [SessionState], applied: Farside_V1_StreamConfigApplied?, host: DeviceInfo?, rtts: [Double]) {
-        lock.withLock { (states, applied, host, roundTrips) }
+    var snapshot: (states: [SessionState], applied: Farside_V1_StreamConfigApplied?, host: DeviceInfo?, rtts: [Double],
+                   notices: [Farside_V1_NoticeCode]) {
+        lock.withLock { (states, applied, host, roundTrips, noticeCodes) }
     }
 }
 
@@ -358,6 +361,64 @@ func testIdentity(_ name: String) -> LocalIdentity {
         transports.client.send(hello, on: .control)
         #expect(await eventually { host.state == .ended(.authFailed) || host.state == .idle })
         #expect(recorder.snapshot.log.isEmpty)
+    }
+
+    // MARK: Pause and resume (plan section 7, app lifecycle; Phase 4)
+
+    @Test func pauseStopsCaptureAndResumeRestartsIt() async {
+        let p = connect()
+        #expect(await eventually { p.host.state == .streaming && p.client.state == .streaming })
+        p.client.pause()
+        #expect(await eventually { p.host.state == .paused && p.client.state == .paused })
+        #expect(p.hostRecorder.snapshot.log.last == "stop", "capture stops while paused")
+        p.client.resume()
+        #expect(await eventually { p.host.state == .streaming && p.client.state == .streaming })
+        #expect(p.hostRecorder.snapshot.log.suffix(2) == ["stop", "start"], "capture starts again with the same stream")
+    }
+
+    @Test func inputWhilePausedIsDropped() async {
+        let p = connect()
+        #expect(await eventually { p.host.state == .streaming })
+        p.client.pause()
+        #expect(await eventually { p.host.state == .paused })
+        p.transports.client.send(try! Envelope(seq: 99, sentAtMicroseconds: 1, body: .key(.with { $0.hidUsage = 4; $0.down = true })).encoded(), on: .input)
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(p.hostRecorder.inputBodies.isEmpty)
+    }
+
+    @Test func resumeWithTheWrongTokenEndsTheSession() async throws {
+        let p = connect()
+        #expect(await eventually { p.host.state == .streaming })
+        p.client.pause()
+        #expect(await eventually { p.host.state == .paused })
+        p.transports.client.send(try Envelope(seq: 99, sentAtMicroseconds: 1, body: .resume(.with { $0.resumeToken = Data([1, 2, 3]) })).encoded(), on: .control)
+        #expect(await eventually { p.host.state == .ended(.authFailed) || p.host.state == .idle })
+    }
+
+    @Test func pausedTooLongEnds() async {
+        let p = connect(timeouts: SessionTimeouts(paused: .milliseconds(200)))
+        #expect(await eventually { p.host.state == .streaming })
+        p.client.pause()
+        #expect(await eventually { p.host.state == .ended(.networkLost) || p.host.state == .idle })
+    }
+
+    @Test func signalingClosingWhilePausedKeepsTheSession() async {
+        let p = connect()
+        #expect(await eventually { p.host.state == .streaming })
+        p.client.pause()
+        #expect(await eventually { p.host.state == .paused })
+        p.signaling.client.close()
+        try? await Task.sleep(for: .milliseconds(200))
+        #expect(p.host.state == .paused)
+        p.client.resume()
+        #expect(await eventually { p.host.state == .streaming })
+    }
+
+    @Test func noticesReachTheClient() async {
+        let p = connect()
+        #expect(await eventually { p.client.state == .streaming })
+        p.host.notice(.screenRecordingLost)
+        #expect(await eventually { p.clientRecorder.snapshot.notices == [.screenRecordingLost] })
     }
 
     @Test func pingsMeasureRoundTrip() async {
