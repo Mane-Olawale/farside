@@ -13,9 +13,17 @@ let package = Package(
     dependencies: [
         .package(path: "../Pairing"),
         .package(path: "../SecureStore"),
+        .package(path: "../SessionTransport"),
     ],
     targets: [
-        .target(name: "BackendClient", dependencies: ["Pairing"]),
-        .testTarget(name: "BackendClientTests", dependencies: ["BackendClient", "Pairing", "SecureStore"]),
+        .target(name: "BackendClient", dependencies: [
+            "Pairing",
+            "SecureStore",
+            .product(name: "SessionTransport", package: "SessionTransport"),
+        ]),
+        .testTarget(name: "BackendClientTests", dependencies: [
+            "BackendClient", "Pairing", "SecureStore",
+            .product(name: "SessionTransport", package: "SessionTransport"),
+        ]),
     ]
 )

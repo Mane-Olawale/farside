@@ -1,3 +1,4 @@
+import BackendClient
 import Foundation
 import Network
 import Observation
@@ -22,11 +23,18 @@ final class DeviceListModel {
     var connection: ConnectionModel?
     /// This iPad's identity and paired Macs. Nil only if the keychain refused.
     let pairing: ClientPairing? = try? ClientPairing()
+    /// Sign-in and online status, when this build has a backend.
+    let backend: ClientBackend?
+
+    init() {
+        backend = pairing.map { ClientBackend(identity: $0.identity) }
+    }
 
     @ObservationIgnored private var browser: LANBrowser?
     @ObservationIgnored private let log = Logger(subsystem: "app.farside.client", category: "discovery")
 
     func start() {
+        backend?.start()
         guard browser == nil else { return }
         let log = self.log
         let browser = LANBrowser(
@@ -53,8 +61,18 @@ final class DeviceListModel {
 
     /// Connects to a paired Mac, found on this network or at a typed address.
     func connect(to host: DiscoveredHost, as peer: PairedPeer) {
+        open(.lan(host), peer: peer)
+    }
+
+    /// Connects to a paired Mac through the backend, from any network (plan section 12).
+    func connectOverInternet(to peer: PairedPeer) {
+        guard let backend, let link = backend.link else { return }
+        open(.internet(api: link.api, router: link.router, relayOnly: backend.relayOnly), peer: peer)
+    }
+
+    private func open(_ route: ConnectionModel.Route, peer: PairedPeer) {
         guard connection == nil, let pairing else { return }
-        let connection = ConnectionModel(host: host, peer: peer, credentials: pairing.credentials)
+        let connection = ConnectionModel(route: route, peer: peer, credentials: pairing.credentials)
         self.connection = connection
         connection.start()
     }

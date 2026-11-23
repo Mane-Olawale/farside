@@ -198,10 +198,10 @@ private struct StatusPanel: View {
             switch connection.state {
             case .idle, .ringing:
                 ProgressView()
-                Text("Connecting to \(connection.host.name)…").font(.headline)
+                Text("Connecting to \(connection.name)…").font(.headline)
             case .negotiating:
                 ProgressView()
-                Text("Finding a path to \(connection.host.name)…").font(.headline)
+                Text("Finding a path to \(connection.name)…").font(.headline)
             case .securing:
                 ProgressView()
                 Text("Starting the stream…").font(.headline)
@@ -211,7 +211,7 @@ private struct StatusPanel: View {
             case .paused:
                 Text("Paused").font(.headline)
             case .ended(let reason):
-                if let message = Self.message(reason, host: connection.host.name) {
+                if let message = connection.setupError ?? Self.message(reason, host: connection.name) {
                     Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundStyle(.yellow)
                     Text(message).font(.headline).multilineTextAlignment(.center)
                 }

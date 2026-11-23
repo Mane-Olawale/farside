@@ -72,8 +72,13 @@ final class HostController {
     @ObservationIgnored private var statsTask: Task<Void, Never>?
     /// Changes whenever the menu should be rebuilt.
     @ObservationIgnored var onChange: (() -> Void)? {
-        didSet { pairing?.onChange = onChange }
+        didSet {
+            pairing?.onChange = onChange
+            backend?.onChange = onChange
+        }
     }
+    /// Sign-in and rings over the internet, when this build has a backend.
+    @ObservationIgnored private(set) var backend: HostBackend?
     /// This Mac's identity and paired devices. Nil only if the keychain refused, in which case
     /// nothing can connect.
     @ObservationIgnored private(set) var pairing: HostPairing?
@@ -92,6 +97,10 @@ final class HostController {
         }
         pairing.onChange = onChange
         self.pairing = pairing
+        let backend = HostBackend(pairing: pairing, controller: self)
+        backend.onChange = onChange
+        self.backend = backend
+        backend.start()
         let advertiser = LANAdvertiser(
             credentials: pairing.credentials, name: HostIdentity.name,
             onConnection: { [weak self] connection in
@@ -230,14 +239,20 @@ final class HostController {
     private func incoming(_ connection: SignalingConnection) {
         localNetwork = .working
         // One session at a time (plan section 6). Take over arrives in Phase 4.
-        if let session, session.state.isActive {
+        if isBusy {
             log.info("busy: refusing a second connection")
             connection.start(onState: { state in
                 if state == .ready { connection.sendAndClose(.reject(.busy)) }
             }, onMessage: { _ in })
             return
         }
+        begin(connection, configuration: .lan)
+    }
 
+    var isBusy: Bool { session?.state.isActive == true }
+
+    /// A paired device's session, over the LAN or through the backend.
+    func begin(_ connection: any SignalingChannel, configuration: TransportConfiguration) {
         clientID = connection.peer
         let input = HostInputHandler(onAccessMissing: { [weak self] in
             Task { @MainActor in self?.refreshAccessibility() }
@@ -257,7 +272,7 @@ final class HostController {
         let session = HostSession(signaling: connection, local: HostIdentity.deviceInfo(), delegate: media,
                                   log: { text in log.info("\(text, privacy: .public)") })
         let transport = WebRTCTransport(
-            role: .host, configuration: .lan,
+            role: .host, configuration: configuration,
             makeEncoder: { codec, width, height, bitrate in
                 try? VideoEncoder(settings: EncoderSettings(codec: codec, width: width, height: height, bitrate: bitrate))
             },

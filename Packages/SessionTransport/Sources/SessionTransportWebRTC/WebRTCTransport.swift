@@ -111,8 +111,13 @@ public final class WebRTCTransport: SessionTransport, @unchecked Sendable {
         config.bundlePolicy = .maxBundle
         config.rtcpMuxPolicy = .require
         config.continualGatheringPolicy = .gatherContinually
-        // LAN only until Phase 3 adds STUN and TURN from the backend.
-        config.iceServers = []
+        // None on a LAN; STUN and TURN from the backend over the internet (plan section 12).
+        config.iceServers = configuration.iceServers.map {
+            RTCIceServer(urlStrings: $0.urls, username: $0.username, credential: $0.credential)
+        }
+        config.iceTransportPolicy = configuration.relayOnly ? .relay : .all
+        // Gathering starts before the offer is ready.
+        config.iceCandidatePoolSize = configuration.iceServers.isEmpty ? 0 : 1
         // Spike S4 knobs for the audio jitter buffer.
         let env = ProcessInfo.processInfo.environment
         if let max = env["FARSIDE_AUDIO_JB_MAX"].flatMap(Int32.init) { config.audioJitterBufferMaxPackets = max }
@@ -244,7 +249,7 @@ public final class WebRTCTransport: SessionTransport, @unchecked Sendable {
         case .candidate:
             guard let candidate = message.body.candidate else { return }
             connection.add(RTCIceCandidate(sdp: candidate, sdpMLineIndex: message.body.sdpMLineIndex ?? 0, sdpMid: message.body.sdpMid)) { _ in }
-        case .join, .reject, .bye, .pair, .paired:
+        case .join, .reject, .bye, .pair, .paired, .ring, .accept:
             // Session-level messages. The session layer acts on them.
             break
         }

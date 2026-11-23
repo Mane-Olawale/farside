@@ -18,6 +18,9 @@ public struct SignalMessage: Sendable, Equatable {
         case bye
         /// The iPad's answer to a pairing QR code, and the Mac's acceptance (plan section 14).
         case pair, paired
+        /// Over the internet: the backend's unsigned hint that an iPad is calling, and the Mac's
+        /// signed answer that it will take the session (plan section 12).
+        case ring, accept
     }
 
     public var kind: Kind

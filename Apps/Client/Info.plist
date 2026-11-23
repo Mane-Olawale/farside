@@ -20,6 +20,17 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>FarsideAPIURL</key>
+	<string>$(FARSIDE_API_URL)</string>
+	<key>FarsideReverbKey</key>
+	<string>$(FARSIDE_REVERB_KEY)</string>
+	<key>FarsideReverbURL</key>
+	<string>$(FARSIDE_REVERB_URL)</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_farside._tcp</string>

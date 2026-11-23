@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Pairing
 import SessionTransport
 import SwiftUI
@@ -34,7 +35,7 @@ struct DevicesView: View {
                 if model.pairing == nil {
                     ContentUnavailableView("Farside cannot start", systemImage: "key.slash",
                                            description: Text("This iPad's identity key is unavailable."))
-                } else if model.hosts.isEmpty && model.pairedHosts.isEmpty {
+                } else if model.hosts.isEmpty && model.pairedHosts.isEmpty && model.backend?.status != .signedOut {
                     emptyState
                 } else {
                     list
@@ -89,19 +90,50 @@ struct DevicesView: View {
 
     private var list: some View {
         List {
-            if !model.pairedHosts.isEmpty {
-                Section("Your Macs") {
-                    ForEach(model.pairedHosts, id: \.peer.id) { entry in
-                        Button {
-                            if let host = entry.host { model.connect(to: host, as: entry.peer) }
-                        } label: {
-                            HostRow(name: entry.peer.name, detail: entry.host == nil ? "Not on this network"
-                                    : entry.host!.isCompatible ? "On this network" : "Needs a matching version of Farside Host")
+            if let backend = model.backend, backend.status == .signedOut {
+                Section {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Reach your Macs from anywhere").font(.headline)
+                        Text("Sign in with the same Apple Account as Farside Host on your Macs. Macs on this network work without it.")
+                            .font(.callout).foregroundStyle(.secondary)
+                        SignInWithAppleButton(.signIn) { $0.requestedScopes = [] } onCompletion: { backend.completeSignIn($0) }
+                            .frame(height: 44)
+                        if let error = backend.signInError {
+                            Text(error).font(.caption).foregroundStyle(.red)
                         }
-                        .disabled(entry.host?.isCompatible != true)
+                    }
+                    .padding(.vertical, 6)
+                }
+            }
+            if !model.pairedHosts.isEmpty {
+                Section {
+                    ForEach(model.pairedHosts, id: \.peer.id) { entry in
+                        let online = model.backend?.isOnline(entry.peer.id) == true
+                        Button {
+                            if let host = entry.host {
+                                model.connect(to: host, as: entry.peer)
+                            } else if online {
+                                model.connectOverInternet(to: entry.peer)
+                            }
+                        } label: {
+                            HostRow(name: entry.peer.name, detail: detail(host: entry.host, online: online))
+                        }
+                        .disabled(entry.host.map { !$0.isCompatible } ?? !online)
                         .swipeActions {
                             Button("Forget", role: .destructive) { model.pairing?.remove(entry.peer.id) }
                         }
+                        .contextMenu {
+                            if online {
+                                Button("Connect over the Internet", systemImage: "globe") { model.connectOverInternet(to: entry.peer) }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Your Macs")
+                } footer: {
+                    if let backend = model.backend, backend.status != .signedOut, backend.status != .unavailable {
+                        Toggle("Relay only (testing)", isOn: Binding(get: { backend.relayOnly }, set: { backend.relayOnly = $0 }))
+                            .font(.caption)
                     }
                 }
             }
@@ -141,6 +173,19 @@ struct DevicesView: View {
             } actions: {
                 Button("Pair a Mac…") { pairing = true }
             }
+        }
+    }
+}
+
+extension DevicesView {
+    func detail(host: DiscoveredHost?, online: Bool) -> String {
+        if let host { return host.isCompatible ? "On this network" : "Needs a matching version of Farside Host" }
+        if online { return "Online" }
+        switch model.backend?.status {
+        case .online: return "Offline"
+        case .connecting: return "Checking…"
+        case .offline: return "Farside service unreachable"
+        default: return "Not on this network"
         }
     }
 }

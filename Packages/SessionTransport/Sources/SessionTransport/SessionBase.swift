@@ -238,8 +238,8 @@ public class SessionBase: @unchecked Sendable {
             transport?.handle(message)
         case .bye, .reject:
             apply(.peerEnded(message.endReason ?? .internalError))
-        case .pair, .paired:
-            break  // Pairing connections never carry a session.
+        case .pair, .paired, .ring, .accept:
+            break  // Pairing, and the internet path's ring and accept, are handled before the session.
         }
     }
 

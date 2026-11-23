@@ -7,4 +7,10 @@ SWIFT_STRICT_CONCURRENCY = complete
 IPHONEOS_DEPLOYMENT_TARGET = 26.0
 MACOSX_DEPLOYMENT_TARGET = 26.0
 
+// The backend (plan section 13). Empty means LAN only. xcconfig reads // as a comment, so a URL
+// is written http:/$()/host:port in Local.xcconfig.
+FARSIDE_API_URL =
+FARSIDE_REVERB_URL =
+FARSIDE_REVERB_KEY =
+
 #include? "Local.xcconfig"

@@ -65,6 +65,11 @@ targets:
       - package: Pairing
       - package: SecureStore
       - package: Telemetry
+    entitlements:
+      path: Apps/Client/Client.entitlements
+      properties:
+        com.apple.developer.applesignin:
+          - Default
     settings:
       base:
         PRODUCT_NAME: Farside
@@ -93,6 +98,13 @@ targets:
         NSBonjourServices:
           - _farside._tcp
         NSCameraUsageDescription: Farside scans the pairing code shown on your Mac.
+        # The backend (plan section 13). Empty means LAN only; Config/Local.xcconfig sets them.
+        FarsideAPIURL: $(FARSIDE_API_URL)
+        FarsideReverbURL: $(FARSIDE_REVERB_URL)
+        FarsideReverbKey: $(FARSIDE_REVERB_KEY)
+        # Plain HTTP only to addresses on the local network, for the development backend.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         NSFaceIDUsageDescription: Farside uses Face ID to lock your list of Macs.
         # ITSAppUsesNonExemptEncryption is set only after the export compliance check (plan section 18).
   Host:
@@ -123,6 +135,8 @@ targets:
       properties:
         keychain-access-groups:
           - $(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)
+        com.apple.developer.applesignin:
+          - Default
     settings:
       base:
         PRODUCT_NAME: Farside Host
@@ -140,6 +154,13 @@ targets:
         LSUIElement: true
         LSApplicationCategoryType: public.app-category.utilities
         NSLocalNetworkUsageDescription: Farside Host lets your paired iPad find and connect to this Mac on the local network.
+        # The backend (plan section 13). Empty means LAN only; Config/Local.xcconfig sets them.
+        FarsideAPIURL: $(FARSIDE_API_URL)
+        FarsideReverbURL: $(FARSIDE_REVERB_URL)
+        FarsideReverbKey: $(FARSIDE_REVERB_KEY)
+        # Plain HTTP only to addresses on the local network, for the development backend.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         NSBonjourServices:
           - _farside._tcp
   # Latency rig: millisecond counter, moving bar and block-coded frame counter (plan section 17).

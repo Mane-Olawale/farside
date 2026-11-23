@@ -1,3 +1,4 @@
+import BackendClient
 import ClientInput
 import ClientVideo
 import Foundation
@@ -37,10 +38,23 @@ struct StatsSnapshot: Equatable {
 @MainActor
 @Observable
 final class ConnectionModel: Identifiable {
+    /// How this connection reaches the Mac (plan section 12).
+    enum Route {
+        /// Same network, or a typed address: signaling straight to the Mac.
+        case lan(DiscoveredHost)
+        /// Anywhere else: signaling through the backend, with its STUN and TURN servers.
+        case internet(api: BackendAPI, router: SignalRouter, relayOnly: Bool)
+    }
+
     let id = UUID()
-    let host: DiscoveredHost
+    let route: Route
     /// The paired Mac this connection must reach: its pinned key is checked at every step.
     let peer: PairedPeer
+    var name: String { peer.name }
+    /// Why connecting failed before a session existed, such as the service being down.
+    private(set) var setupError: String?
+    /// The backend's session id, for the session record. Internet only.
+    @ObservationIgnored private(set) var backendSession: String?
     @ObservationIgnored private let credentials: SessionCredentials
 
     private(set) var state: SessionState = .idle
@@ -75,14 +89,51 @@ final class ConnectionModel: Identifiable {
     @ObservationIgnored private var connectStarted: CFTimeInterval = 0
     @ObservationIgnored private let log = Logger(subsystem: "app.farside.client", category: "session")
 
-    init(host: DiscoveredHost, peer: PairedPeer, credentials: SessionCredentials) {
-        self.host = host
+    init(route: Route, peer: PairedPeer, credentials: SessionCredentials) {
+        self.route = route
         self.peer = peer
         self.credentials = credentials
     }
 
     func start() {
         connectStarted = CACurrentMediaTime()
+        switch route {
+        case .lan(let host):
+            begin(signaling: SignalingConnection.connect(to: host.endpoint, credentials: credentials, peer: peer.id),
+                  configuration: .lan)
+        case let .internet(api, router, relayOnly):
+            state = .ringing
+            Task {
+                do {
+                    let created = try await api.createSession(to: peer.id.rawValue)
+                    guard state == .ringing else { return }  // Cancelled meanwhile.
+                    backendSession = created.session
+                    let log = self.log
+                    let signaling = BackendSignaling(api: api, credentials: credentials, session: created.session, peer: peer.id,
+                                                     role: .client, router: router, log: { log.info("\($0, privacy: .public)") })
+                    let servers = created.iceServers.map { TransportIceServer(urls: $0.urls, username: $0.username, credential: $0.credential) }
+                    begin(signaling: signaling, configuration: .internet(iceServers: servers, relayOnly: relayOnly))
+                } catch {
+                    log.error("could not create the session: \(String(describing: error), privacy: .public)")
+                    setupError = (error as? BackendError).map { Self.explain($0, mac: peer.name) } ?? "Could not start a session with \(peer.name)."
+                    state = .ended(.internalError)
+                }
+            }
+        }
+    }
+
+    static func explain(_ error: BackendError, mac: String) -> String {
+        switch error {
+        case .unauthorized: "Sign in again to reach \(mac) over the internet."
+        case .notFound: "\(mac) is no longer on this account."
+        case .unavailable: "The Farside service is unavailable. Macs on this network still work."
+        case .rateLimited: "Too many attempts. Wait a minute and try again."
+        case .network: "This iPad is offline."
+        case .rejected, .malformed: "Could not start a session with \(mac)."
+        }
+    }
+
+    private func begin(signaling: any SignalingChannel, configuration: TransportConfiguration) {
         guard let presenter = VideoPresenter(layer: surface.metalLayer) else {
             state = .ended(.internalError)
             return
@@ -96,14 +147,13 @@ final class ConnectionModel: Identifiable {
         let link = ClientLink(model: self)
         link.cursor.withLock { $0 = cursor }
         let log = self.log
-        let signaling = SignalingConnection.connect(to: host.endpoint, credentials: credentials, peer: peer.id)
         let session = ClientSession(signaling: signaling, local: Self.deviceInfo(), delegate: link,
                                     log: { text in log.info("\(text, privacy: .public)") })
         let firstFrame = FirstFrameClock(start: connectStarted) { [weak self] seconds in
             Task { @MainActor in self?.timeToFirstFrame = seconds }
         }
         let transport = WebRTCTransport(
-            role: .client, configuration: .lan,
+            role: .client, configuration: configuration,
             makeDecoder: { _ in VideoDecoder() },
             handlers: session.transportHandlers(frame: { pixels, _ in
                 var onPresented: (@Sendable (UInt32, RenderTimes) -> Void)?
@@ -238,6 +288,8 @@ final class ConnectionModel: Identifiable {
     }
 
     // MARK: Identity
+
+    nonisolated static var deviceModel: String { deviceInfo().model }
 
     nonisolated static func deviceInfo() -> DeviceInfo {
         var info = utsname()

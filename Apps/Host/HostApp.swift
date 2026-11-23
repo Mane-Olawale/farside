@@ -68,6 +68,17 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if controller.isInSession {
             menu.addItem(item("Disconnect", #selector(disconnect)))
         }
+        if let backend = controller.backend, backend.status != .unavailable {
+            if backend.status == .signedOut {
+                menu.addItem(item("Sign In to Reach This Mac Anywhere…", #selector(signIn)))
+            } else {
+                let line = NSMenuItem(title: backend.status == .online ? "Reachable over the internet"
+                                      : backend.status == .connecting ? "Connecting to the Farside service…"
+                                      : "Farside service unreachable", action: nil, keyEquivalent: "")
+                line.isEnabled = false
+                menu.addItem(line)
+            }
+        }
         if let pairing = controller.pairing {
             menu.addItem(item("Pair New Device…", #selector(pairNewDevice)))
             let devices = NSMenuItem(title: "Paired Devices", action: nil, keyEquivalent: "")
@@ -109,6 +120,10 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func disconnect() {
         controller.disconnect()
+    }
+
+    @objc private func signIn() {
+        controller.backend?.showSignIn()
     }
 
     @objc private func pairNewDevice() {
