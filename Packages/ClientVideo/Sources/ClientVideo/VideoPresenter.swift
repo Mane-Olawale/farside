@@ -148,7 +148,13 @@ public final class VideoPresenter: NSObject, CAMetalDisplayLinkDelegate, @unchec
             defer { t.last = target }
             guard t.last > 0, target > t.last else { return 0 }
             let gap = target - t.last
+            // Two updates can carry almost the same target time; such a gap is no refresh
+            // interval, and dividing by it made the count explode. No display refreshes faster
+            // than 240 Hz.
+            guard gap >= 1.0 / 240 else { return 0 }
             t.interval = min(t.interval, gap)
+            // A long gap is a pause (the app in the background), not skipped refreshes.
+            guard gap < 0.5 else { return 0 }
             return Int((gap / t.interval).rounded()) - 1
         }
         if missed > 0 { counters.withLock { $0.skippedRefreshes += missed } }
