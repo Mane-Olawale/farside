@@ -9,8 +9,12 @@ Plan section 13. Two setups:
 
 ## First public deploy
 
-1. Create a droplet from DigitalOcean's Docker image (1 GB is enough), with your SSH key.
-2. Point a DNS A record, such as `farside-api.example.com`, at it. Open ports 80 and 443 only.
+1. Create a droplet from DigitalOcean's Docker image on Ubuntu 24.04: Basic, Regular, 2 GB
+   memory, 1 vCPU, 50 GB disk, in the region nearest you (London from Lagos). 1 GB is too tight
+   for building the image next to PostgreSQL, Redis and three PHP processes. SSH key only, IPv6
+   on, monitoring on.
+2. Point a DNS A record, such as `farside-api.example.com`, at it. A cloud firewall allows TCP
+   80 and 443 from anywhere and 22 from your own address only.
 3. `make server-deploy HOST=root@<droplet ip> DOMAIN=<that name>`. The first run writes
    `/opt/farside/Server/deploy/production/.env` with fresh secrets.
 4. In Cloudflare: Realtime, TURN Server, Create. Paste the key id and API token into that `.env`
