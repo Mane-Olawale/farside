@@ -247,6 +247,31 @@ func testIdentity(_ name: String) -> LocalIdentity {
         #expect(await eventually { p.host.state == .idle })
     }
 
+    /// WebRTC can report failed before the useful candidates arrive (the Mac's public address
+    /// after its private ones). While negotiating that is not the end: the path still comes up.
+    @Test func earlyPathFailureWhileNegotiatingIsNotFatal() async {
+        let (hostSignal, clientSignal) = InMemorySignaling.pair()
+        let hostRecorder = HostRecorder(), clientRecorder = ClientRecorder()
+        let host = HostSession(signaling: hostSignal, local: macInfo, delegate: hostRecorder)
+        let client = ClientSession(signaling: clientSignal, local: iPadInfo, delegate: clientRecorder)
+        let transports = InMemoryTransport.pair(host: host.transportHandlers(), client: client.transportHandlers())
+        transports.host.connectDelay = .milliseconds(600)
+        client.start(transport: transports.client)
+        host.start(transport: transports.host)
+        #expect(await eventually { host.state == .negotiating && client.state == .negotiating })
+        host.transportHandlers().event(.state(.failed))
+        client.transportHandlers().event(.state(.failed))
+        #expect(await eventually { host.state == .streaming && client.state == .streaming })
+    }
+
+    /// Once streaming, a failed transport still ends the session.
+    @Test func pathFailureWhileStreamingEnds() async {
+        let p = connect()
+        #expect(await eventually { p.client.state == .streaming })
+        p.client.transportHandlers().event(.state(.failed))
+        #expect(await eventually { if case .ended = p.client.state { true } else { p.client.state == .recovering || p.client.state == .idle } })
+    }
+
     /// No Hello within the securing timeout: the host gives up and never captures.
     @Test func silentClientTimesOut() async throws {
         let (hostSignal, clientSignal) = InMemorySignaling.pair()

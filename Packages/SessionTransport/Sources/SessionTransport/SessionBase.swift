@@ -251,6 +251,12 @@ public class SessionBase: @unchecked Sendable {
         case .state(.disconnected):
             pathConnected = false
             apply(.pathDown)
+        case .state(.failed) where machine.state == .negotiating:
+            // Still looking for a path: WebRTC checks again as more candidates arrive, such as
+            // the Mac's public address after its private ones. Only the path timeout gives up
+            // (plan section 12, path checks 15 s).
+            pathConnected = false
+            log("no working path yet; still checking")
         case .state(.failed), .state(.closed):
             pathConnected = false
             apply(.transportClosed)
