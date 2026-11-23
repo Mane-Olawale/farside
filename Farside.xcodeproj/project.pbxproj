@@ -41,6 +41,7 @@
 		4290E7BDEBAB74B111CD1D91 /* Pairing in Frameworks */ = {isa = PBXBuildFile; productRef = 2852885D927FC670FF6BB795 /* Pairing */; };
 		49BFA16F1D4A762686266BF1 /* HostController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D635D582A06B83727ED2DE /* HostController.swift */; };
 		49D59C2A6A42D4AB6382FC54 /* PatternView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98B06750574B57538F301F6 /* PatternView.swift */; };
+		4F4568FC74FA5C01E0AB89A8 /* HostPower.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E62EF4615C343480F9AC5FE /* HostPower.swift */; };
 		4FD09795D6F1E3C0FC209FEE /* InputModel in Frameworks */ = {isa = PBXBuildFile; productRef = CEF9306296191EF5C348B6EE /* InputModel */; };
 		535494E88848B22ACA31065E /* MediaCore in Frameworks */ = {isa = PBXBuildFile; productRef = 38E624F8D8722383BE37D9D8 /* MediaCore */; };
 		538F89E1885DA7411AF187B1 /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = 94B301C41134980121F03E25 /* Telemetry */; };
@@ -102,6 +103,7 @@
 		E9A46775198433B62D090EDB /* ConnectionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03136313D352ABEA4B336614 /* ConnectionModel.swift */; };
 		ED32CEF3B8690FF70E052743 /* HostMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = 959B17A4BE9EF2D80D41DF9A /* HostMedia.swift */; };
 		F83B7E00227A0C5913D25F76 /* SessionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD16B6752507F70D5A529064 /* SessionScreen.swift */; };
+		FAC784C92A039F4D01BFCC82 /* HostControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD18780A4F9FE6FFCFCB190F /* HostControl.swift */; };
 		FC12AC0188B6BA54AC6D4C51 /* uninstall-check-agent.sh in Resources */ = {isa = PBXBuildFile; fileRef = 4C080699EA4E470A78BD467A /* uninstall-check-agent.sh */; };
 		FCC4FB51ED0E45FD11CB810A /* ClientVideo in Frameworks */ = {isa = PBXBuildFile; productRef = 73A8A944701905CAF3208222 /* ClientVideo */; };
 		FF9065BA137F2F84D1D8539F /* HostCapture in Frameworks */ = {isa = PBXBuildFile; productRef = 3D7112D88BEE0BBD16BDD356 /* HostCapture */; };
@@ -155,6 +157,7 @@
 		897F798E900AB07DE1AAB21C /* MetalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalView.swift; sourceTree = "<group>"; };
 		8B749AA68C52F7A27101DF17 /* InputProbe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = InputProbe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8BE9A95EB3D0E628FD44400E /* PairingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSheet.swift; sourceTree = "<group>"; };
+		8E62EF4615C343480F9AC5FE /* HostPower.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostPower.swift; sourceTree = "<group>"; };
 		90E33EA876770DAFF8BCE77E /* InputModel */ = {isa = PBXFileReference; lastKnownFileType = folder; name = InputModel; path = Packages/InputModel; sourceTree = SOURCE_ROOT; };
 		943DD17E66EEA97B55CC1613 /* PeerToPeerWiFi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerToPeerWiFi.swift; sourceTree = "<group>"; };
 		9492B6E160FB1BC17B134570 /* LockProbeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockProbeApp.swift; sourceTree = "<group>"; };
@@ -168,6 +171,7 @@
 		B8485CB2081C60513A703379 /* Probe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Probe.swift; sourceTree = "<group>"; };
 		BA08CC933A1B3E6A161429C7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		BD16B6752507F70D5A529064 /* SessionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionScreen.swift; sourceTree = "<group>"; };
+		BD18780A4F9FE6FFCFCB190F /* HostControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostControl.swift; sourceTree = "<group>"; };
 		BE00E2DBD10AB35371F9EE96 /* ClientInput */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ClientInput; path = Packages/ClientInput; sourceTree = SOURCE_ROOT; };
 		C2D635D582A06B83727ED2DE /* HostController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostController.swift; sourceTree = "<group>"; };
 		C69391F19FFCCE683218A97A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -460,6 +464,7 @@
 				FB9C506710D6234468CA7D60 /* Host.entitlements */,
 				9D0997DD3EDAE2468F015B13 /* HostApp.swift */,
 				4BA19186F196D69F4AC3F742 /* HostBackend.swift */,
+				BD18780A4F9FE6FFCFCB190F /* HostControl.swift */,
 				C2D635D582A06B83727ED2DE /* HostController.swift */,
 				046187C2F03C7716E82336A1 /* HostCursor.swift */,
 				FDA929D4216BC300CADD388F /* HostIdentity.swift */,
@@ -467,6 +472,7 @@
 				2E12E2C8828CA42A68D458FA /* HostLaunch.swift */,
 				959B17A4BE9EF2D80D41DF9A /* HostMedia.swift */,
 				122668BCE43BC3CB39D2786A /* HostPairing.swift */,
+				8E62EF4615C343480F9AC5FE /* HostPower.swift */,
 				943DD17E66EEA97B55CC1613 /* PeerToPeerWiFi.swift */,
 				09C3F58AE13FBF4A206FFE48 /* PermissionsView.swift */,
 			);
@@ -932,6 +938,7 @@
 			files = (
 				671D889CA00755B2A63E31F6 /* HostApp.swift in Sources */,
 				E90F1956219364E1BCDEC950 /* HostBackend.swift in Sources */,
+				FAC784C92A039F4D01BFCC82 /* HostControl.swift in Sources */,
 				49BFA16F1D4A762686266BF1 /* HostController.swift in Sources */,
 				79796748F13B1011482B3DC7 /* HostCursor.swift in Sources */,
 				6441C6517B83772A155F587D /* HostIdentity.swift in Sources */,
@@ -939,6 +946,7 @@
 				B1D36018705A6D09EB5AFBF3 /* HostLaunch.swift in Sources */,
 				ED32CEF3B8690FF70E052743 /* HostMedia.swift in Sources */,
 				076A941218BDC2AA179781C3 /* HostPairing.swift in Sources */,
+				4F4568FC74FA5C01E0AB89A8 /* HostPower.swift in Sources */,
 				9AFAD0C90308BC5ECDDDAFCD /* PeerToPeerWiFi.swift in Sources */,
 				B990E4E175F4BC17658177C6 /* PermissionsView.swift in Sources */,
 			);
