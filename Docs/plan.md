@@ -1852,6 +1852,19 @@ Exit criteria:
 5. After 8 idle hours, a connection still works on the first try.
 6. Revoking screen recording mid-session produces the right message on the iPad.
 
+Results (23 November 2026, M3 Pro Mac with an external display, iPad Pro M4, home Wi-Fi):
+
+| Check | Result |
+| --- | --- |
+| 1. Reachable after a reboot and login | Passed. Farside Host was running 36 s after boot finished, within the minute of login, and the iPad connected without touching the Mac. Before login (FileVault's password screen) the Mac cannot answer, as expected |
+| 2. iPad Wi-Fi off and on | Passed. The iPad reconnected by itself within the 3 s |
+| 3. 20 s in the background | Passed. The session paused and resumed within 2 s |
+| 4. Host killed | Passed. Back in 0.2 s and online with the backend 0.5 s later |
+| 5. 8 idle hours | To run overnight |
+| 6. Screen Recording revoked mid-session | Passed. The iPad says the Mac needs Screen Recording |
+
+Also tried on the devices: display switching, the disconnect shortcut, attended mode (allow and decline) and lock when the session ends. Take over is covered by tests only, as there is one iPad.
+
 ### Phase 5: Stream quality (weeks 14 to 16)
 
 Goal: hit the latency and quality targets on every network profile.
