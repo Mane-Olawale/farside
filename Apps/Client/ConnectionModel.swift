@@ -124,6 +124,15 @@ final class ConnectionModel: Identifiable {
                                                          Task { @MainActor in self?.note(line) }
                                                      })
                     let servers = created.iceServers.map { TransportIceServer(urls: $0.urls, username: $0.username, credential: $0.credential) }
+                    note("internet path\(relayOnly ? ", relay only" : ""), \(servers.count) ICE servers")
+                    let hasRelay = servers.contains { $0.urls.contains { $0.hasPrefix("turn:") || $0.hasPrefix("turns:") } }
+                    if relayOnly, !hasRelay {
+                        // Relay only allows no other path, so with no TURN server nothing can connect.
+                        setupError = "Relay only is on, but the Farside service has no relay server. Turn off Relay only under Your Macs."
+                        signaling.close()
+                        state = .ended(.internalError)
+                        return
+                    }
                     begin(signaling: signaling, configuration: .internet(iceServers: servers, relayOnly: relayOnly))
                 } catch {
                     log.error("could not create the session: \(String(describing: error), privacy: .public)")
