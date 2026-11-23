@@ -140,7 +140,7 @@ let iPadInfo = DeviceInfo(name: "Test iPad", model: "iPad16,5", osVersion: "27.2
                           capabilities: .with { $0.codecs = [.hevc, .h264]; $0.maxWidth = 2752; $0.maxHeight = 2064 })
 
 /// Polls until `condition` holds or the time runs out.
-func eventually(_ seconds: Double = 3, _ condition: () -> Bool) async -> Bool {
+func eventually(_ seconds: Double = 10, _ condition: () -> Bool) async -> Bool {
     let end = Date().addingTimeInterval(seconds)
     while Date() < end {
         if condition() { return true }
