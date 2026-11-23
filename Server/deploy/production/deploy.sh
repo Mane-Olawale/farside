@@ -9,15 +9,17 @@ host=$1
 domain=$2
 bundle_prefix=$3
 here=$(cd "$(dirname "$0")" && pwd)
+# FARSIDE_SSH_KEY picks the private key for this server, if not the default one.
+ssh_cmd="ssh -o StrictHostKeyChecking=accept-new${FARSIDE_SSH_KEY:+ -i $FARSIDE_SSH_KEY -o IdentitiesOnly=yes}"
 root=$(cd "$here/../../.." && pwd)
 
-rsync -az --delete \
+rsync -az --delete -e "$ssh_cmd" \
   --exclude vendor --exclude .env --exclude 'storage/logs/*' --exclude 'storage/framework/*/*' \
   --exclude database/database.sqlite \
   "$root/Server/api/" "$host:/opt/farside/Server/api/"
-rsync -az --exclude .env "$here/" "$host:/opt/farside/Server/deploy/production/"
+rsync -az -e "$ssh_cmd" --exclude .env "$here/" "$host:/opt/farside/Server/deploy/production/"
 
-ssh "$host" sh -s "$domain" "$bundle_prefix" <<'REMOTE'
+$ssh_cmd "$host" sh -s "$domain" "$bundle_prefix" <<'REMOTE'
 set -eu
 domain=$1
 prefix=$2

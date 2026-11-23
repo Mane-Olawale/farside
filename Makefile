@@ -159,10 +159,11 @@ server-up:
 server-down:
 	docker compose -f Server/deploy/compose.yml down
 
-# The public backend (Server/deploy/README.md): make server-deploy HOST=root@1.2.3.4 DOMAIN=api.example.com
+# The public backend (Server/deploy/README.md): make server-deploy HOST=root@1.2.3.4 DOMAIN=api.example.com,
+# with SSH_KEY=path/to/private_key if the server does not take your default key.
 server-deploy:
 	@test -n "$(HOST)" -a -n "$(DOMAIN)" || { echo "Usage: make server-deploy HOST=root@server DOMAIN=api.example.com"; exit 1; }
-	Server/deploy/production/deploy.sh $(HOST) $(DOMAIN) $$(grep '^FARSIDE_BUNDLE_PREFIX' Config/Local.xcconfig | tail -1 | cut -d= -f2 | tr -d ' ')
+	FARSIDE_SSH_KEY="$(SSH_KEY)" Server/deploy/production/deploy.sh $(HOST) $(DOMAIN) $$(grep '^FARSIDE_BUNDLE_PREFIX' Config/Local.xcconfig | tail -1 | cut -d= -f2 | tr -d ' ')
 
 # BackendClient against the running local backend: two throwaway devices, a ring and a signal.
 backend-live-test:
