@@ -13,6 +13,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 ssh_cmd="ssh -o StrictHostKeyChecking=accept-new${FARSIDE_SSH_KEY:+ -i $FARSIDE_SSH_KEY -o IdentitiesOnly=yes}"
 root=$(cd "$here/../../.." && pwd)
 
+$ssh_cmd "$host" mkdir -p /opt/farside/Server/api /opt/farside/Server/deploy/production
 rsync -az --delete -e "$ssh_cmd" \
   --exclude vendor --exclude .env --exclude 'storage/logs/*' --exclude 'storage/framework/*/*' \
   --exclude database/database.sqlite \
