@@ -422,14 +422,21 @@ final class HostController {
             screenRecording = ScreenRecordingAccess.atLaunch ? .revoked : .missing
             session?.end(.permissionMissing)
         case .captureFailed(let reason):
-            log.error("capture failed: \(reason, privacy: .public)")
-            session?.end(.internalError)
+            // An id in this log and on the iPad's screen, to find one from the other.
+            let id = Self.diagnosticsID()
+            log.error("capture failed, diagnostics id \(id, privacy: .public): \(reason, privacy: .public)")
+            session?.end(.internalError, detail: id)
         }
         changed()
     }
 
     func disconnect() {
         session?.end(.hostEnded)
+    }
+
+    /// Eight characters to quote: in the host's log and in the iPad's message (plan section 15).
+    static func diagnosticsID() -> String {
+        String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(8))
     }
 
     /// After wake the listener may be stale; with no session, start it again.

@@ -54,6 +54,15 @@ final class ConnectionModel: Identifiable {
     var name: String { peer.name }
     /// Why connecting failed before a session existed, such as the service being down.
     private(set) var setupError: String?
+    /// The id to quote for an internal error: the Mac's, if its Bye carried one, else this
+    /// iPad's, which is logged here (plan section 15).
+    @ObservationIgnored private(set) lazy var diagnosticsID: String = {
+        if let detail = session?.endDetail, !detail.isEmpty { return detail }
+        let id = String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(8))
+        log.error("internal error, diagnostics id \(id, privacy: .public)")
+        return id
+    }()
+
     /// The Mac's displays, for the toolbar's picker (plan section 10).
     private(set) var displays: [Farside_V1_Display] = []
 

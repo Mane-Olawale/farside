@@ -374,6 +374,15 @@ func testIdentity(_ name: String) -> LocalIdentity {
         #expect(recorder.snapshot.log.isEmpty)
     }
 
+    /// Plan section 15: internal_error shows a diagnostics id, which travels in the Bye.
+    @Test func byeCarriesADiagnosticsDetail() async {
+        let p = connect()
+        #expect(await eventually { p.client.state == .streaming })
+        p.host.end(.internalError, detail: "F00D1234")
+        #expect(await eventually { p.client.state == .ended(.internalError) })
+        #expect(p.client.endDetail == "F00D1234")
+    }
+
     // MARK: Displays (plan section 10; Phase 4)
 
     @Test func switchingDisplaysRestartsCaptureOnTheNewOne() async {

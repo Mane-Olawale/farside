@@ -248,7 +248,9 @@ private struct StatusPanel: View {
                 Text("Connection lost. Reconnecting…").font(.headline)
                 Button("Cancel", action: close)
             case .ended(let reason):
-                if let message = connection.setupError ?? Self.message(reason, host: connection.name) {
+                if let message = connection.setupError ?? Self.message(reason, host: connection.name).map({
+                    reason == .internalError ? "\($0) Code \(connection.diagnosticsID)." : $0
+                }) {
                     Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundStyle(.yellow)
                     Text(message).font(.headline).multilineTextAlignment(.center)
                 }
@@ -298,7 +300,7 @@ private struct StatusPanel: View {
         case .permissionMissing: "\(host) needs Screen Recording access. Open Farside Host on the Mac to allow it."
         case .hostSleeping: "\(host) went to sleep."
         case .networkLost: "The connection to \(host) was lost."
-        case .internalError: "Something went wrong."
+        case .internalError: "Something went wrong."  // The diagnostics id is added by the caller.
         }
     }
 }
