@@ -38,8 +38,14 @@ build: build-client build-host build-testpattern
 build-client: generate
 	$(XCB) -scheme Client -destination 'generic/platform=iOS' build
 
+# The unsigned Debug copy is then unregistered from Launch Services: otherwise macOS can reopen
+# it in place of the signed app (after Quit & Reopen for a new permission), and it has neither
+# the Screen Recording grant nor a valid login item.
 build-host: generate
 	$(XCB) -scheme Host -destination 'generic/platform=macOS' build
+	@$(LSREGISTER) -u "$(DERIVED)/Build/Products/Debug/Farside Host.app" 2>/dev/null || true
+
+LSREGISTER = /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
 # Signed with the team in Config/Local.xcconfig, so Screen Recording and Local Network grants
 # survive rebuilds (plan section 6, development notes). Release, as it will be measured.
