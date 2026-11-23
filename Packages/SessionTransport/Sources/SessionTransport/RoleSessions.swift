@@ -58,6 +58,8 @@ public final class HostSession: SessionBase, @unchecked Sendable {
     private weak var delegate: HostSessionDelegate?
     private var client: DeviceInfo?
     private var applied: Farside_V1_StreamConfigApplied?
+    /// The iPad's last request, applied again when the displays change.
+    private var lastRequest: Farside_V1_StreamConfig?
     /// Hello nonces seen by any session on this Mac, so none is accepted twice.
     static let nonces = Mutex(NonceGuard())
     private let resumeToken = Data((0..<16).map { _ in UInt8.random(in: 0...255) })
@@ -82,10 +84,17 @@ public final class HostSession: SessionBase, @unchecked Sendable {
     }
 
     /// Resends the display list, for example after a display was added.
+    /// The displays changed (plan section 10, displays): the iPad gets the new list, and if the
+    /// streamed display is gone the stream moves to another one, which the iPad is told.
     public func sendDisplays() {
         queue.async { [self] in
             guard machine.state == .streaming || machine.state == .securing, client != nil, let delegate else { return }
-            send(.displayList(.with { $0.displays = delegate.hostSessionDisplays() }))
+            let displays = delegate.hostSessionDisplays()
+            send(.displayList(.with { $0.displays = displays }))
+            if machine.state == .streaming, let request = lastRequest, let applied,
+               !displays.contains(where: { $0.id == applied.displayID }) {
+                configure(request)
+            }
         }
     }
 
@@ -127,20 +136,8 @@ public final class HostSession: SessionBase, @unchecked Sendable {
             apply(.resume)
 
         case .streamConfig(let request):
-            guard let client, machine.state == .securing || machine.state == .streaming else { return }
-            guard let applied = delegate?.hostSessionApply(request, client: client) else {
-                return apply(.end(.internalError))
-            }
-            let restart = machine.state == .streaming && self.applied != applied
-            self.applied = applied
-            send(.streamConfigApplied(applied))
-            if machine.state == .securing {
-                apply(.handshakeDone)
-            } else if restart {
-                // A new display or size while streaming.
-                delegate?.hostSessionStopMedia()
-                delegate?.hostSessionStartMedia(applied)
-            }
+            guard client != nil, machine.state == .securing || machine.state == .streaming else { return }
+            configure(request)
 
         default:
             break
@@ -189,6 +186,26 @@ public final class HostSession: SessionBase, @unchecked Sendable {
         if let hello = earlyHello {
             earlyHello = nil
             handle(hello)
+        }
+    }
+
+    /// Applies a stream request: the delegate decides, the iPad hears the result, and capture
+    /// restarts if a stream is running and anything changed.
+    private func configure(_ request: Farside_V1_StreamConfig) {
+        guard let client else { return }
+        guard let applied = delegate?.hostSessionApply(request, client: client) else {
+            return apply(.end(.internalError))
+        }
+        lastRequest = request
+        let restart = machine.state == .streaming && self.applied != applied
+        self.applied = applied
+        send(.streamConfigApplied(applied))
+        if machine.state == .securing {
+            apply(.handshakeDone)
+        } else if restart {
+            // A new display or size while streaming.
+            delegate?.hostSessionStopMedia()
+            delegate?.hostSessionStartMedia(applied)
         }
     }
 
@@ -302,6 +319,15 @@ public final class ClientSession: SessionBase, @unchecked Sendable {
         let seq = nextSeq()
         queue.async { [self] in sendWhileStreaming(body, seq: seq) }
         return seq
+    }
+
+    /// Asks for another display or size while streaming (plan section 10, displays). The
+    /// Mac's StreamConfigApplied answers, as at the start.
+    public func requestStream(_ config: Farside_V1_StreamConfig) {
+        queue.async { [self] in
+            guard machine.state == .streaming else { return }
+            send(.streamConfig(config))
+        }
     }
 
     /// The app left the foreground (plan section 7, app lifecycle): the Mac stops capture and

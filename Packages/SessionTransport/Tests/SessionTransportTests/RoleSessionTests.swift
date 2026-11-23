@@ -71,13 +71,24 @@ final class HostRecorder: HostSessionDelegate, @unchecked Sendable {
     var states: [SessionState] = []
     var started: [Farside_V1_StreamConfigApplied] = []
 
+    /// The main display 7 and a second display 8, which a test can unplug.
+    private var displayIDs: [UInt32] = [7, 8]
+    func unplug(_ id: UInt32) { lock.withLock { displayIDs.removeAll { $0 == id } } }
+
     func hostSessionDisplays() -> [Farside_V1_Display] {
-        [.with { $0.id = 7; $0.name = "Test"; $0.pixelWidth = 3440; $0.pixelHeight = 1440; $0.main = true }]
+        lock.withLock { displayIDs }.map { id in
+            .with { $0.id = id; $0.name = "Test \(id)"; $0.pixelWidth = 3440; $0.pixelHeight = 1440; $0.main = id == 7 }
+        }
     }
     func hostSessionApply(_ request: Farside_V1_StreamConfig, client: DeviceInfo) -> Farside_V1_StreamConfigApplied? {
-        lock.withLock { log.append("apply") }
+        let present = lock.withLock { () -> [UInt32] in
+            log.append("apply")
+            return displayIDs
+        }
+        // Like the real host: the requested display if it is there, else the main one.
+        let display = present.contains(request.displayID) ? request.displayID : 7
         return .with {
-            $0.displayID = request.displayID
+            $0.displayID = display
             $0.width = 2752
             $0.height = 1152
             $0.frameRate = 60
@@ -361,6 +372,26 @@ func testIdentity(_ name: String) -> LocalIdentity {
         transports.client.send(hello, on: .control)
         #expect(await eventually { host.state == .ended(.authFailed) || host.state == .idle })
         #expect(recorder.snapshot.log.isEmpty)
+    }
+
+    // MARK: Displays (plan section 10; Phase 4)
+
+    @Test func switchingDisplaysRestartsCaptureOnTheNewOne() async {
+        let p = connect()
+        #expect(await eventually { p.client.state == .streaming })
+        p.client.requestStream(.with { $0.displayID = 8; $0.width = 2752; $0.height = 2064; $0.frameRate = 60 })
+        #expect(await eventually { p.clientRecorder.snapshot.applied?.displayID == 8 })
+        #expect(p.hostRecorder.snapshot.log.suffix(2) == ["stop", "start"])
+    }
+
+    @Test func losingTheStreamedDisplayMovesToAnother() async {
+        let p = connect()
+        #expect(await eventually { p.client.state == .streaming })
+        p.client.requestStream(.with { $0.displayID = 8; $0.width = 2752; $0.height = 2064; $0.frameRate = 60 })
+        #expect(await eventually { p.clientRecorder.snapshot.applied?.displayID == 8 })
+        p.hostRecorder.unplug(8)
+        p.host.sendDisplays()
+        #expect(await eventually { p.clientRecorder.snapshot.applied?.displayID == 7 })
     }
 
     // MARK: Pause and resume (plan section 7, app lifecycle; Phase 4)

@@ -116,6 +116,26 @@ private struct ControlPill: View {
                     Image(systemName: "command.square")
                 }
                 .accessibilityLabel("Mac shortcuts")
+
+                // Plan section 7, floating toolbar: the display picker, when the Mac has more than one.
+                if connection.displays.count > 1 {
+                    Menu {
+                        ForEach(connection.displays, id: \.id) { display in
+                            Button {
+                                connection.switchDisplay(display.id)
+                            } label: {
+                                if display.id == connection.applied?.displayID {
+                                    Label(display.name, systemImage: "checkmark")
+                                } else {
+                                    Text(display.name)
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "display.2")
+                    }
+                    .accessibilityLabel("Display")
+                }
                 Divider().frame(height: 20)
             }
 

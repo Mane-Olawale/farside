@@ -54,6 +54,20 @@ final class ConnectionModel: Identifiable {
     var name: String { peer.name }
     /// Why connecting failed before a session existed, such as the service being down.
     private(set) var setupError: String?
+    /// The Mac's displays, for the toolbar's picker (plan section 10).
+    private(set) var displays: [Farside_V1_Display] = []
+
+    func displaysChanged(_ displays: [Farside_V1_Display]) {
+        self.displays = displays
+    }
+
+    /// Streams another of the Mac's displays, fitted to this screen.
+    func switchDisplay(_ id: UInt32) {
+        guard id != applied?.displayID else { return }
+        note("switching to display \(id)")
+        session?.requestStream(Self.streamRequest(displays: displays, screenPixels: screenPixels, preferred: id))
+    }
+
     /// A notice from the Mac that does not end the session, shown over the picture.
     private(set) var notice: String?
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
@@ -540,14 +554,17 @@ private final class ClientLink: ClientSessionDelegate, @unchecked Sendable {
     }
 
     func clientSessionChooseStream(displays: [Farside_V1_Display], host: DeviceInfo) -> Farside_V1_StreamConfig {
-        ConnectionModel.streamRequest(displays: displays, screenPixels: screenPixels, preferred: preferredDisplay)
+        Task { @MainActor [weak model] in model?.displaysChanged(displays) }
+        return ConnectionModel.streamRequest(displays: displays, screenPixels: screenPixels, preferred: preferredDisplay)
     }
 
     func clientSessionApplied(_ applied: Farside_V1_StreamConfigApplied) {
         Task { @MainActor [weak model] in model?.appliedChanged(applied) }
     }
 
-    func clientSessionDisplaysChanged(_ displays: [Farside_V1_Display]) {}
+    func clientSessionDisplaysChanged(_ displays: [Farside_V1_Display]) {
+        Task { @MainActor [weak model] in model?.displaysChanged(displays) }
+    }
 
     func clientSessionStateChanged(_ state: SessionState, host: DeviceInfo?) {
         Task { @MainActor [weak model] in model?.sessionChanged(state, host: host) }
