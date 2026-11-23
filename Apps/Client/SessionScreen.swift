@@ -24,6 +24,19 @@ struct SessionScreen: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
+            if let notice = connection.notice, connection.state == .streaming {
+                Label(notice, systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .background(.black.opacity(0.75), in: Capsule())
+                    .frame(maxWidth: 640)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, 32)
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+            }
+
             if connection.showsToolbar || connection.state != .streaming {
                 ControlPill(connection: connection, close: close)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)

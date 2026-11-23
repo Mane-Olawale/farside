@@ -54,6 +54,26 @@ final class ConnectionModel: Identifiable {
     var name: String { peer.name }
     /// Why connecting failed before a session existed, such as the service being down.
     private(set) var setupError: String?
+    /// A notice from the Mac that does not end the session, shown over the picture.
+    private(set) var notice: String?
+    @ObservationIgnored private var noticeTask: Task<Void, Never>?
+
+    func show(_ notice: Farside_V1_Notice) {
+        let text: String? = switch notice.code {
+        case .accessibilityLost: "\(name) can't be controlled right now: Farside Host needs Accessibility. Allow it on the Mac, in Farside Host's Permissions."
+        case .screenRecordingLost: "\(name) stopped sharing its screen: Farside Host needs Screen Recording."
+        case .unspecified, .UNRECOGNIZED: nil
+        }
+        guard let text else { return }
+        self.notice = text
+        noticeTask?.cancel()
+        noticeTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(10))
+            guard !Task.isCancelled else { return }
+            self?.notice = nil
+        }
+    }
+
     /// Reconnecting by itself after the network dropped (plan section 15, automatic retry).
     private(set) var reconnecting = false
     @ObservationIgnored private var everStreamed = false
@@ -529,6 +549,10 @@ private final class ClientLink: ClientSessionDelegate, @unchecked Sendable {
     let cursor = Mutex<CursorModel?>(nil)
     func clientSessionCursor(_ body: Envelope.OneOf_Body) {
         cursor.withLock { $0 }?.handle(body)
+    }
+
+    func clientSessionNotice(_ notice: Farside_V1_Notice) {
+        Task { @MainActor [weak model] in model?.show(notice) }
     }
 }
 

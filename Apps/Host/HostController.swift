@@ -192,6 +192,8 @@ final class HostController {
         guard now != accessibility else { return }
         accessibility = now
         log.info("accessibility: \(now ? "granted" : "missing", privacy: .public)")
+        // Without it the iPad can watch but not control (plan section 15): say so.
+        if !now, sessionState == .streaming { session?.notice(.accessibilityLost) }
         changed()
     }
 
@@ -305,6 +307,7 @@ final class HostController {
                 startStatsLog()
                 refreshPeerToPeer()
                 refreshAccessibility()
+                if !accessibility { session?.notice(.accessibilityLost) }
             }
             if state == .streaming, cursor == nil, let session, let media {
                 let cursor = HostCursor(session: session, media: media)
