@@ -2,6 +2,7 @@ import Foundation
 import Pairing
 import SecureStore
 import SessionTransport
+import SessionTransportWebRTC
 import Testing
 import WireProtocol
 @testable import BackendClient
@@ -47,8 +48,8 @@ struct LiveSessionTests {
         return try JSONDecoder().decode(LiveBackend.self, from: pipe.fileHandleForReading.readDataToEndOfFile())
     }
 
-    @Test(.timeLimit(.minutes(1)))
-    func internetSessionReachesStreaming() async throws {
+    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
+    func internetSessionReachesStreaming(realTransport: Bool) async throws {
         let mac = try LocalIdentity.loadOrCreate(in: MemorySecretStore(), name: "Mac", allowEnclave: false)
         let iPad = try LocalIdentity.loadOrCreate(in: MemorySecretStore(), name: "iPad", allowEnclave: false)
         let live = try Self.mint(mac: mac, iPad: iPad)
@@ -90,9 +91,19 @@ struct LiveSessionTests {
         let client = ClientSession(signaling: clientSignaling, local: DeviceInfo(name: "iPad", model: "t", osVersion: "26", appVersion: "1",
                                                                                  capabilities: .init()), delegate: clientDelegate,
                                    log: { print("CLIENT: \($0)") })
-        let transports = InMemoryTransport.pair(host: host.transportHandlers(), client: client.transportHandlers())
-        // The descriptions cross the backend before a real path could come up.
-        transports.host.connectDelay = .seconds(1)
+        let ice = created.iceServers.map { TransportIceServer(urls: $0.urls, username: $0.username, credential: $0.credential) }
+        let transports: (host: any SessionTransport, client: any SessionTransport)
+        if realTransport {
+            // WebRTC on both ends, with the backend's ICE servers, as the apps run it. The host
+            // sends no video here: the data channels carry the handshake.
+            transports = (WebRTCTransport(role: .host, configuration: .internet(iceServers: ice), handlers: host.transportHandlers()),
+                          WebRTCTransport(role: .client, configuration: .internet(iceServers: ice), handlers: client.transportHandlers()))
+        } else {
+            let pair = InMemoryTransport.pair(host: host.transportHandlers(), client: client.transportHandlers())
+            // The descriptions cross the backend before a real path could come up.
+            pair.host.connectDelay = .seconds(1)
+            transports = (pair.host, pair.client)
+        }
         client.start(transport: transports.client)
         host.start(transport: transports.host)
 

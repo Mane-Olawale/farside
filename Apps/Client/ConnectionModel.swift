@@ -53,6 +53,15 @@ final class ConnectionModel: Identifiable {
     var name: String { peer.name }
     /// Why connecting failed before a session existed, such as the service being down.
     private(set) var setupError: String?
+    /// The session's recent log lines (states, path and transport errors; never input or
+    /// keys), for the Details list when a connection fails.
+    private(set) var recentLog: [String] = []
+
+    func note(_ line: String) {
+        let stamp = Date().formatted(.dateTime.hour().minute().second())
+        recentLog.append("\(stamp) \(line)")
+        if recentLog.count > 40 { recentLog.removeFirst(recentLog.count - 40) }
+    }
     /// The backend's session id, for the session record. Internet only.
     @ObservationIgnored private(set) var backendSession: String?
     @ObservationIgnored private let credentials: SessionCredentials
@@ -110,7 +119,10 @@ final class ConnectionModel: Identifiable {
                     backendSession = created.session
                     let log = self.log
                     let signaling = BackendSignaling(api: api, credentials: credentials, session: created.session, peer: peer.id,
-                                                     role: .client, router: router, log: { log.info("\($0, privacy: .public)") })
+                                                     role: .client, router: router, log: { [weak self] line in
+                                                         log.info("\(line, privacy: .public)")
+                                                         Task { @MainActor in self?.note(line) }
+                                                     })
                     let servers = created.iceServers.map { TransportIceServer(urls: $0.urls, username: $0.username, credential: $0.credential) }
                     begin(signaling: signaling, configuration: .internet(iceServers: servers, relayOnly: relayOnly))
                 } catch {
@@ -148,7 +160,10 @@ final class ConnectionModel: Identifiable {
         link.cursor.withLock { $0 = cursor }
         let log = self.log
         let session = ClientSession(signaling: signaling, local: Self.deviceInfo(), delegate: link,
-                                    log: { text in log.info("\(text, privacy: .public)") })
+                                    log: { [weak self] text in
+                                        log.info("\(text, privacy: .public)")
+                                        Task { @MainActor in self?.note(text) }
+                                    })
         let firstFrame = FirstFrameClock(start: connectStarted) { [weak self] seconds in
             Task { @MainActor in self?.timeToFirstFrame = seconds }
         }

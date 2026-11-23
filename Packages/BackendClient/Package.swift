@@ -25,6 +25,7 @@ let package = Package(
         .testTarget(name: "BackendClientTests", dependencies: [
             "BackendClient", "Pairing", "SecureStore", "WireProtocol",
             .product(name: "SessionTransport", package: "SessionTransport"),
+            .product(name: "SessionTransportWebRTC", package: "SessionTransport"),
         ]),
     ]
 )

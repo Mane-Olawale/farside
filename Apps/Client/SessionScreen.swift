@@ -215,6 +215,18 @@ private struct StatusPanel: View {
                     Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundStyle(.yellow)
                     Text(message).font(.headline).multilineTextAlignment(.center)
                 }
+                if !connection.recentLog.isEmpty {
+                    DisclosureGroup("Details") {
+                        ScrollView {
+                            Text(connection.recentLog.joined(separator: "\n"))
+                                .font(.caption2.monospaced())
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        }
+                        .frame(maxHeight: 220)
+                    }
+                    .font(.caption)
+                }
                 Button("Back to Macs", action: close).buttonStyle(.borderedProminent)
             case .streaming:
                 EmptyView()
