@@ -163,4 +163,4 @@ server-down:
 backend-live-test:
 	@devices=$$(docker compose -f Server/deploy/compose.yml exec -T api php artisan farside:test-devices) && \
 	key=$$(grep ^REVERB_APP_KEY Server/api/.env | cut -d= -f2) && \
-	FARSIDE_LIVE_BACKEND="$$devices" FARSIDE_REVERB_KEY="$$key" swift test --package-path Packages/BackendClient --filter LiveBackendTests
+	FARSIDE_LIVE_BACKEND="$$devices" FARSIDE_REVERB_KEY="$$key" FARSIDE_COMPOSE="$(CURDIR)/Server/deploy/compose.yml" swift test --package-path Packages/BackendClient --filter Live

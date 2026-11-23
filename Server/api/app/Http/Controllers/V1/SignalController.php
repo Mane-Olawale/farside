@@ -80,6 +80,8 @@ class SignalController extends Controller
         RateLimiter::hit($key, 60);
 
         event(new SignalDelivered($target->id, $raw));
+        Log::debug('signal passed on', ['type' => $envelope['type'], 'session' => $envelope['session'],
+            'to' => $target->platform, 'bytes' => strlen($raw)]);
 
         return response()->json(status: 202);
     }

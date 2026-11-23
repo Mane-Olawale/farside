@@ -64,9 +64,9 @@ struct LiveBackendTests {
         #expect(ring["session"] as? String == created.session)
 
         let ts = Int(Date().timeIntervalSince1970)
-        let text = #"{"body":{"sdp":"v=0\r\na=fingerprint:sha-256 AA"},"from":"FROM","seq":1,"session":"SESSION","sig":"c2ln","to":"TO","ts":TS,"type":"offer","v":1}"#
-            .replacingOccurrences(of: "FROM", with: live.ipad.id).replacingOccurrences(of: "TO", with: live.mac.id)
-            .replacingOccurrences(of: "SESSION", with: created.session).replacingOccurrences(of: "TS", with: String(ts))
+        let text = #"{"body":{"sdp":"v=0\r\na=fingerprint:sha-256 AA"},"from":"@from@","seq":1,"session":"@session@","sig":"c2ln","to":"@to@","ts":@ts@,"type":"offer","v":1}"#
+            .replacingOccurrences(of: "@from@", with: live.ipad.id).replacingOccurrences(of: "@to@", with: live.mac.id)
+            .replacingOccurrences(of: "@session@", with: created.session).replacingOccurrences(of: "@ts@", with: String(ts))
         let envelope = Data(text.utf8)
         try await ipad.signal(envelope)
         #expect(await until { signals.all.count == 2 })

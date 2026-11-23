@@ -13,7 +13,9 @@ use Illuminate\Console\Command;
  */
 class MintTestDevices extends Command
 {
-    protected $signature = 'farside:test-devices';
+    protected $signature = 'farside:test-devices
+        {--mac-id= : Use this id for the Mac} {--mac-key= : and this public key (base64 x963)}
+        {--ipad-id= : Use this id for the iPad} {--ipad-key= : and this public key}';
 
     protected $description = 'Create a throwaway account with a Mac and an iPad, and print their tokens as JSON';
 
@@ -27,6 +29,8 @@ class MintTestDevices extends Command
         $account = Account::create(['apple_subject' => 'live-test-'.bin2hex(random_bytes(6))]);
         $out = ['account' => $account->id];
         foreach (['mac' => 'macOS', 'ipad' => 'iPadOS'] as $role => $platform) {
+            $givenId = $this->option("$role-id");
+            $givenKey = $this->option("$role-key");
             $key = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
             $ec = openssl_pkey_get_details($key)['ec'];
             $public = base64_encode("\x04".str_pad($ec['x'], 32, "\0", STR_PAD_LEFT).str_pad($ec['y'], 32, "\0", STR_PAD_LEFT));
@@ -34,6 +38,9 @@ class MintTestDevices extends Command
             $id = 'dev_';
             for ($i = 0; $i < 26; $i++) {
                 $id .= $alphabet[random_int(0, 31)];
+            }
+            if ($givenId && $givenKey) {
+                [$id, $public] = [$givenId, $givenKey];
             }
             $device = new Device(['id' => $id, 'name' => "Live test $role", 'platform' => $platform,
                 'public_key' => $public, 'key_fingerprint' => Device::fingerprint($public)]);

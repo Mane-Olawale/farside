@@ -13,6 +13,9 @@ public final class InMemoryTransport: SessionTransport, @unchecked Sendable {
     private var closed = false
     private var dropping = false
     public private(set) var sentSignals: [SignalMessage] = []
+    /// How long after `start()` the path comes up: long enough for the session descriptions to
+    /// cross whatever signaling the test uses.
+    public var connectDelay: Duration = .milliseconds(50)
 
     private init(role: TransportRole, queue: DispatchQueue, handlers: TransportHandlers) {
         self.role = role
@@ -39,7 +42,7 @@ public final class InMemoryTransport: SessionTransport, @unchecked Sendable {
         handlers.signal(.offer("v=0\r\na=fingerprint:sha-256 \(Self.fingerprint("host"))\r\n"))
         peer.handlers.signal(.answer("v=0\r\na=fingerprint:sha-256 \(Self.fingerprint("client"))\r\n"))
         // Signaling is delivered asynchronously; let the descriptions land first.
-        queue.asyncAfter(deadline: .now() + .milliseconds(50)) {
+        queue.asyncAfter(deadline: .now() + connectDelay.timeInterval) {
             for end in [self, peer] where !end.isClosed {
                 end.handlers.event(.state(.connected))
                 for channel in Wire.Channel.allCases { end.handlers.event(.channelOpen(channel)) }
