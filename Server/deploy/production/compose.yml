@@ -1,0 +1,86 @@
+# The public backend (plan section 13, deployment): one droplet. Caddy terminates TLS for the API
+# and Reverb on one name; PostgreSQL and Redis stay on the private network. The relay is
+# Cloudflare's, so nothing here handles media.
+name: farside
+
+x-app: &app
+  build: ../../api
+  env_file: .env
+  environment:
+    APP_ENV: production
+    APP_DEBUG: "false"
+    DB_CONNECTION: pgsql
+    DB_HOST: db
+    DB_PORT: "5432"
+    DB_DATABASE: farside
+    DB_USERNAME: farside
+    DB_PASSWORD: ${DB_PASSWORD}
+    REDIS_HOST: redis
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    BROADCAST_CONNECTION: reverb
+    # The API publishes to Reverb on the private network.
+    REVERB_HOST: reverb
+    REVERB_PORT: "8080"
+    REVERB_SCHEME: http
+    SESSION_DRIVER: array
+    LOG_CHANNEL: stderr
+    LOG_LEVEL: info
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_started
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      FARSIDE_DOMAIN: ${FARSIDE_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+      - reverb
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: farside
+      POSTGRES_USER: farside
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U farside"]
+      interval: 2s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  api:
+    <<: *app
+    command: sh -c "php artisan migrate --force && php artisan config:cache && frankenphp run --config /etc/frankenphp/Caddyfile"
+
+  reverb:
+    <<: *app
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+
+  queue:
+    <<: *app
+    command: php artisan queue:work --tries=3
+
+volumes:
+  db:
+  caddy-data:
+  caddy-config:

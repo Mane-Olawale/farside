@@ -3,7 +3,7 @@ PROJECT = Farside.xcodeproj
 DERIVED = .build/DerivedData
 XCB = xcodebuild -project $(PROJECT) -derivedDataPath $(DERIVED) CODE_SIGNING_ALLOWED=NO
 
-.PHONY: generate test trust-check ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 component-input build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up server-test server-down backend-live-test
+.PHONY: generate test trust-check ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 component-input build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up server-test server-down backend-live-test server-deploy
 
 generate:
 	xcodegen generate
@@ -158,6 +158,11 @@ server-up:
 
 server-down:
 	docker compose -f Server/deploy/compose.yml down
+
+# The public backend (Server/deploy/README.md): make server-deploy HOST=root@1.2.3.4 DOMAIN=api.example.com
+server-deploy:
+	@test -n "$(HOST)" -a -n "$(DOMAIN)" || { echo "Usage: make server-deploy HOST=root@server DOMAIN=api.example.com"; exit 1; }
+	Server/deploy/production/deploy.sh $(HOST) $(DOMAIN) $$(grep '^FARSIDE_BUNDLE_PREFIX' Config/Local.xcconfig | tail -1 | cut -d= -f2 | tr -d ' ')
 
 # BackendClient against the running local backend: two throwaway devices, a ring and a signal.
 backend-live-test:

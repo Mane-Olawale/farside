@@ -1,0 +1,7 @@
+# TLS from Let's Encrypt for one name. WebSocket paths go to Reverb, the rest to the API.
+{$FARSIDE_DOMAIN} {
+	@reverb path /app/* /apps/*
+	reverse_proxy @reverb reverb:8080
+	reverse_proxy api:8000
+	header -Server
+}
