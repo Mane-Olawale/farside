@@ -28,6 +28,10 @@
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <!-- Tests set their own relay; a developer's .env must not leak in. -->
+        <env name="TURN_PROVIDER" value="none" force="true"/>
+        <env name="STUN_URLS" value="stun:stun.cloudflare.com:3478" force="true"/>
+        <env name="TURN_TTL" value="43200" force="true"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
