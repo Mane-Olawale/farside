@@ -115,6 +115,21 @@ targets:
       - path: Apps/Host
         excludes:
           - Info.plist
+          - LaunchAgent.plist
+    # Plan section 6, process model: the LaunchAgent in the bundle, with the bundle id and
+    # executable filled in, for SMAppService.
+    postCompileScripts:
+      - name: Install the LaunchAgent
+        inputFiles:
+          - $(SRCROOT)/Apps/Host/LaunchAgent.plist
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Library/LaunchAgents/$(PRODUCT_BUNDLE_IDENTIFIER).agent.plist
+        script: |
+          dest="$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Library/LaunchAgents"
+          mkdir -p "$dest"
+          sed -e "s|BUNDLE_ID|$PRODUCT_BUNDLE_IDENTIFIER|g" -e "s|EXECUTABLE|$EXECUTABLE_NAME|g" \
+            "$SRCROOT/Apps/Host/LaunchAgent.plist" > "$dest/$PRODUCT_BUNDLE_IDENTIFIER.agent.plist"
+          plutil -lint "$dest/$PRODUCT_BUNDLE_IDENTIFIER.agent.plist"
     dependencies:
       - package: HostCapture
       - package: HostInput

@@ -206,16 +206,14 @@ final class HostController {
         changed()
     }
 
-    /// A new Screen Recording grant applies only to a new process (spike S6). Phase 4 lets
-    /// launchd do this; for now the app reopens itself.
+    /// A new Screen Recording grant applies only to a new process (spike S6); launchd starts
+    /// the app again.
     func relaunch() {
-        session?.endAndFlush(.hostEnded)
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, _ in
-            Task { @MainActor in NSApp.terminate(nil) }
-        }
+        HostLaunch.restart { session?.endAndFlush(.hostEnded) }
     }
+
+    /// Open at login (plan section 6): the LaunchAgent's state, for the checklist.
+    var loginItem: HostLaunch.LoginItem { HostLaunch.loginItem }
 
     private func advertiserChanged(_ state: LANAdvertiser.State) {
         switch state {

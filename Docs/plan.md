@@ -340,11 +340,11 @@ V1 uses a single process, because macOS ties privacy grants to one code identity
 | --- | --- |
 | Bundle | One app, one executable, `LSUIElement` set so there is no Dock icon |
 | Launch | A LaunchAgent plist inside the bundle, registered with `SMAppService.agent(plistName:)` |
-| Restart | `KeepAlive` in the plist, so launchd relaunches the app after a crash or self-exit |
+| Restart | `KeepAlive` with `SuccessfulExit` false, so launchd relaunches the app after a crash or a deliberate non-zero exit (the restart for a new permission), while Quit stays quit. `ThrottleInterval` 2 s |
 | Session type | `LimitLoadToSessionType` set to `Aqua`, so it runs only inside a logged-in graphical session |
 | Priority | `ProcessType` set to `Interactive`, plus a latency-critical activity during sessions to keep App Nap away |
 | UI | Status item, onboarding window, pairing window and settings window, all in the same process |
-| Second launch | Opening the app from Finder asks the running instance to show its window, then exits |
+| Second launch | Opening the app from Finder asks the running instance to show its window, then exits. The agent's environment marks the copy launchd runs; a copy opened another way registers the login item if needed, starts the agent with `launchctl kickstart`, and hands over |
 
 A split into a UI app and a separate agent talking over XPC is deferred. It only becomes necessary if login-window access is added in Phase 8, because that needs a privileged helper.
 

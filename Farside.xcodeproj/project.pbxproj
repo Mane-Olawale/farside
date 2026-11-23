@@ -82,6 +82,7 @@
 		AC873A7FBBE554A03A7ACED0 /* ClientVideo in Frameworks */ = {isa = PBXBuildFile; productRef = 207C6DFF4766E5727A0A2BC2 /* ClientVideo */; };
 		AD3DCA8666B08004779784B6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8722F270259921C8D5ACB0AA /* Assets.xcassets */; };
 		B05529B66080B956F938AD22 /* S3HostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D341F049742326D71509DC2 /* S3HostApp.swift */; };
+		B1D36018705A6D09EB5AFBF3 /* HostLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E12E2C8828CA42A68D458FA /* HostLaunch.swift */; };
 		B990E4E175F4BC17658177C6 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09C3F58AE13FBF4A206FFE48 /* PermissionsView.swift */; };
 		BD1914DED61920138A69A0A3 /* SessionTransport in Frameworks */ = {isa = PBXBuildFile; productRef = 48E370EE182EF8E85BAF06CD /* SessionTransport */; };
 		BE0775F4AE74F6C76BAA9693 /* InputLoggerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA4A301379C2BAA44F9EC89 /* InputLoggerApp.swift */; };
@@ -124,6 +125,7 @@
 		244E83D880A746A25BD56941 /* ClientBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientBackend.swift; sourceTree = "<group>"; };
 		27F010CCC84FF366C4198BB7 /* InputProbeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputProbeApp.swift; sourceTree = "<group>"; };
 		2B01E82E5089BEDAC0E4C8F3 /* ClientPairing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientPairing.swift; sourceTree = "<group>"; };
+		2E12E2C8828CA42A68D458FA /* HostLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostLaunch.swift; sourceTree = "<group>"; };
 		395A52FEB6A32EA90B1184C7 /* SessionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionViewController.swift; sourceTree = "<group>"; };
 		3968D6C4E5DDCE05E626A946 /* CodeReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeReader.swift; sourceTree = "<group>"; };
 		39F09E182EE475D109196A5E /* LockProbe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LockProbe.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -462,6 +464,7 @@
 				046187C2F03C7716E82336A1 /* HostCursor.swift */,
 				FDA929D4216BC300CADD388F /* HostIdentity.swift */,
 				9E9A9B14EB61649671098C3F /* HostInputHandler.swift */,
+				2E12E2C8828CA42A68D458FA /* HostLaunch.swift */,
 				959B17A4BE9EF2D80D41DF9A /* HostMedia.swift */,
 				122668BCE43BC3CB39D2786A /* HostPairing.swift */,
 				943DD17E66EEA97B55CC1613 /* PeerToPeerWiFi.swift */,
@@ -688,6 +691,7 @@
 			buildConfigurationList = 5F273ED6D2D7DAF5419F34D6 /* Build configuration list for PBXNativeTarget "Host" */;
 			buildPhases = (
 				7898394D6FE88AE2D1E2A769 /* Sources */,
+				C25F96D739C08796B3D4CA69 /* Install the LaunchAgent */,
 				7F47023BF98EE21CA4BDC814 /* Resources */,
 				0B1407CE3BA9C20081CD3AD5 /* Frameworks */,
 			);
@@ -872,6 +876,29 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		C25F96D739C08796B3D4CA69 /* Install the LaunchAgent */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Apps/Host/LaunchAgent.plist",
+			);
+			name = "Install the LaunchAgent";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Library/LaunchAgents/$(PRODUCT_BUNDLE_IDENTIFIER).agent.plist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "dest=\"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Library/LaunchAgents\"\nmkdir -p \"$dest\"\nsed -e \"s|BUNDLE_ID|$PRODUCT_BUNDLE_IDENTIFIER|g\" -e \"s|EXECUTABLE|$EXECUTABLE_NAME|g\" \\\n  \"$SRCROOT/Apps/Host/LaunchAgent.plist\" > \"$dest/$PRODUCT_BUNDLE_IDENTIFIER.agent.plist\"\nplutil -lint \"$dest/$PRODUCT_BUNDLE_IDENTIFIER.agent.plist\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		2818A178BCB44E8E64213D34 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -909,6 +936,7 @@
 				79796748F13B1011482B3DC7 /* HostCursor.swift in Sources */,
 				6441C6517B83772A155F587D /* HostIdentity.swift in Sources */,
 				313D53444485007327DC3151 /* HostInputHandler.swift in Sources */,
+				B1D36018705A6D09EB5AFBF3 /* HostLaunch.swift in Sources */,
 				ED32CEF3B8690FF70E052743 /* HostMedia.swift in Sources */,
 				076A941218BDC2AA179781C3 /* HostPairing.swift in Sources */,
 				9AFAD0C90308BC5ECDDDAFCD /* PeerToPeerWiFi.swift in Sources */,

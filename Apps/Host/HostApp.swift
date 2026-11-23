@@ -21,6 +21,17 @@ final class HostApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Task {
+            // A copy opened from Finder hands over to the one launchd runs (plan section 6).
+            guard await HostLaunch.shouldContinue() else { exit(0) }
+            begin()
+        }
+    }
+
+    private func begin() {
+        DistributedNotificationCenter.default().addObserver(forName: HostLaunch.showNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.showPermissions() }
+        }
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         let menu = NSMenu()
         menu.delegate = self
