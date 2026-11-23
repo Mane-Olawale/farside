@@ -1,9 +1,11 @@
+import BackendClient
 import ClientInput
 import ClientVideo
 import Foundation
 import MediaCore
 import Observation
 import os
+import Pairing
 import QuartzCore
 import SessionTransport
 import SessionTransportWebRTC
@@ -36,8 +38,33 @@ struct StatsSnapshot: Equatable {
 @MainActor
 @Observable
 final class ConnectionModel: Identifiable {
+    /// How this connection reaches the Mac (plan section 12).
+    enum Route {
+        /// Same network, or a typed address: signaling straight to the Mac.
+        case lan(DiscoveredHost)
+        /// Anywhere else: signaling through the backend, with its STUN and TURN servers.
+        case internet(api: BackendAPI, router: SignalRouter, relay: ClientBackend.RelayMode)
+    }
+
     let id = UUID()
-    let host: DiscoveredHost
+    let route: Route
+    /// The paired Mac this connection must reach: its pinned key is checked at every step.
+    let peer: PairedPeer
+    var name: String { peer.name }
+    /// Why connecting failed before a session existed, such as the service being down.
+    private(set) var setupError: String?
+    /// The session's recent log lines (states, path and transport errors; never input or
+    /// keys), for the Details list when a connection fails.
+    private(set) var recentLog: [String] = []
+
+    func note(_ line: String) {
+        let stamp = Date().formatted(.dateTime.hour().minute().second())
+        recentLog.append("\(stamp) \(line)")
+        if recentLog.count > 40 { recentLog.removeFirst(recentLog.count - 40) }
+    }
+    /// The backend's session id, for the session record. Internet only.
+    @ObservationIgnored private(set) var backendSession: String?
+    @ObservationIgnored private let credentials: SessionCredentials
 
     private(set) var state: SessionState = .idle
     private(set) var hostInfo: DeviceInfo?
@@ -71,12 +98,71 @@ final class ConnectionModel: Identifiable {
     @ObservationIgnored private var connectStarted: CFTimeInterval = 0
     @ObservationIgnored private let log = Logger(subsystem: "app.farside.client", category: "session")
 
-    init(host: DiscoveredHost) {
-        self.host = host
+    init(route: Route, peer: PairedPeer, credentials: SessionCredentials) {
+        self.route = route
+        self.peer = peer
+        self.credentials = credentials
     }
 
     func start() {
         connectStarted = CACurrentMediaTime()
+        switch route {
+        case .lan(let host):
+            begin(signaling: SignalingConnection.connect(to: host.endpoint, credentials: credentials, peer: peer.id),
+                  configuration: .lan)
+        case let .internet(api, router, relay):
+            let relayOnly = relay != .off
+            state = .ringing
+            Task {
+                do {
+                    let created = try await api.createSession(to: peer.id.rawValue)
+                    guard state == .ringing else { return }  // Cancelled meanwhile.
+                    backendSession = created.session
+                    let log = self.log
+                    let signaling = BackendSignaling(api: api, credentials: credentials, session: created.session, peer: peer.id,
+                                                     role: .client, router: router, log: { [weak self] line in
+                                                         log.info("\(line, privacy: .public)")
+                                                         Task { @MainActor in self?.note(line) }
+                                                     })
+                    var servers = created.iceServers.map { TransportIceServer(urls: $0.urls, username: $0.username, credential: $0.credential) }
+                    if relay == .tls {
+                        // Only TURN over TLS on 443, as on a network that blocks UDP.
+                        servers = servers.compactMap { server in
+                            let urls = server.urls.filter { $0.hasPrefix("turns:") && $0.contains(":443") }
+                            return urls.isEmpty ? nil : TransportIceServer(urls: urls, username: server.username, credential: server.credential)
+                        }
+                    }
+                    note("internet path, relay \(relay.rawValue), \(servers.count) ICE servers")
+                    let hasRelay = servers.contains { $0.urls.contains { $0.hasPrefix("turn:") || $0.hasPrefix("turns:") } }
+                    if relayOnly, !hasRelay {
+                        // Relay only allows no other path, so with no TURN server nothing can connect.
+                        setupError = "Relay is forced on, but the Farside service has no relay server for it. Set Relay to Off under Your Macs."
+                        signaling.close()
+                        state = .ended(.internalError)
+                        return
+                    }
+                    begin(signaling: signaling, configuration: .internet(iceServers: servers, relayOnly: relayOnly))
+                } catch {
+                    log.error("could not create the session: \(String(describing: error), privacy: .public)")
+                    setupError = (error as? BackendError).map { Self.explain($0, mac: peer.name) } ?? "Could not start a session with \(peer.name)."
+                    state = .ended(.internalError)
+                }
+            }
+        }
+    }
+
+    static func explain(_ error: BackendError, mac: String) -> String {
+        switch error {
+        case .unauthorized: "Sign in again to reach \(mac) over the internet."
+        case .notFound: "\(mac) is no longer on this account."
+        case .unavailable: "The Farside service is unavailable. Macs on this network still work."
+        case .rateLimited: "Too many attempts. Wait a minute and try again."
+        case .network: "This iPad is offline."
+        case .rejected, .malformed: "Could not start a session with \(mac)."
+        }
+    }
+
+    private func begin(signaling: any SignalingChannel, configuration: TransportConfiguration) {
         guard let presenter = VideoPresenter(layer: surface.metalLayer) else {
             state = .ended(.internalError)
             return
@@ -90,14 +176,16 @@ final class ConnectionModel: Identifiable {
         let link = ClientLink(model: self)
         link.cursor.withLock { $0 = cursor }
         let log = self.log
-        let signaling = SignalingConnection.connect(to: host.endpoint)
         let session = ClientSession(signaling: signaling, local: Self.deviceInfo(), delegate: link,
-                                    log: { text in log.info("\(text, privacy: .public)") })
+                                    log: { [weak self] text in
+                                        log.info("\(text, privacy: .public)")
+                                        Task { @MainActor in self?.note(text) }
+                                    })
         let firstFrame = FirstFrameClock(start: connectStarted) { [weak self] seconds in
             Task { @MainActor in self?.timeToFirstFrame = seconds }
         }
         let transport = WebRTCTransport(
-            role: .client, configuration: .lan,
+            role: .client, configuration: configuration,
             makeDecoder: { _ in VideoDecoder() },
             handlers: session.transportHandlers(frame: { pixels, _ in
                 var onPresented: (@Sendable (UInt32, RenderTimes) -> Void)?
@@ -146,6 +234,7 @@ final class ConnectionModel: Identifiable {
         if case .ended(let reason) = state {
             log.info("ended: \(reason.rawValue, privacy: .public)")
             statsTask?.cancel()
+            recordEnded(reason)
         }
     }
 
@@ -204,6 +293,41 @@ final class ConnectionModel: Identifiable {
         }
     }
 
+    /// The path kind for the overlay and the session record (plan section 12, path quality):
+    /// both host candidates is the same network, any relay candidate is the relay, else direct.
+    nonisolated static func pathType(local: String?, remote: String?) -> String? {
+        guard let local, let remote else { return nil }
+        if local == "relay" || remote == "relay" { return "relay" }
+        return local == "host" && remote == "host" ? "lan" : "direct"
+    }
+
+    // MARK: Session record (internet sessions; plan section 13)
+
+    @ObservationIgnored private var reportedConnected = false
+    @ObservationIgnored private var recordPath: String?
+    @ObservationIgnored private var bitrateSamples: [Double] = []
+    @ObservationIgnored private var rttSamples: [Double] = []
+
+    private func record(path: String?, bitrateMbps: Double?, rttMs: Double?) {
+        guard case let .internet(api, _, _) = route, let session = backendSession else { return }
+        if let path { recordPath = path }
+        if state == .streaming {
+            if let bitrateMbps { bitrateSamples.append(bitrateMbps) }
+            if let rttMs { rttSamples.append(rttMs) }
+        }
+        guard !reportedConnected, state == .streaming, let path = recordPath else { return }
+        reportedConnected = true
+        Task { try? await api.report(SessionReport(type: .connected, pathType: path), session: session) }
+    }
+
+    private func recordEnded(_ reason: SessionEndReason) {
+        guard case let .internet(api, _, _) = route, let session = backendSession else { return }
+        func average(_ values: [Double]) -> Int? { values.isEmpty ? nil : Int(values.reduce(0, +) / Double(values.count)) }
+        let report = SessionReport(type: .ended, pathType: recordPath, endReason: reason.rawValue,
+                                   avgBitrate: average(bitrateSamples.map { $0 * 1000 }), avgRtt: average(rttSamples))
+        Task { try? await api.report(report, session: session) }
+    }
+
     private func update(with s: TransportStats) {
         let counters = presenter?.takeCounters() ?? VideoPresenter.Counters()
         let p = previous
@@ -213,7 +337,8 @@ final class ConnectionModel: Identifiable {
             return now - (p?[keyPath: key] ?? 0)
         }
         var next = stats
-        next.path = s.localCandidateType.map { $0 == "host" && s.remoteCandidateType == "host" ? "Same network" : "\($0) to \(s.remoteCandidateType ?? "?")" }
+        let path = Self.pathType(local: s.localCandidateType, remote: s.remoteCandidateType)
+        next.path = path.map { ["lan": "Same network", "direct": "Direct", "relay": "Relay"][$0] ?? $0 }
         if next.roundTripMs == nil, let rtt = s.roundTripTime { next.roundTripMs = rtt * 1000 }
         next.framesReceived = delta(\.framesReceived)
         next.framesDecoded = delta(\.framesDecoded)
@@ -229,9 +354,12 @@ final class ConnectionModel: Identifiable {
         next.freezes = s.freezeCount
         next.framesDropped = s.framesDropped
         stats = next
+        record(path: path, bitrateMbps: next.bitrateMbps, rttMs: next.roundTripMs)
     }
 
     // MARK: Identity
+
+    nonisolated static var deviceModel: String { deviceInfo().model }
 
     nonisolated static func deviceInfo() -> DeviceInfo {
         var info = utsname()

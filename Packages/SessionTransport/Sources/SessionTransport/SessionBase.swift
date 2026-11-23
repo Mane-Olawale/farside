@@ -1,5 +1,6 @@
 import Foundation
 import MediaCore
+import Pairing
 import Synchronization
 import WireProtocol
 
@@ -10,6 +11,13 @@ public protocol SignalingChannel: AnyObject, Sendable {
                onMessage: @escaping @Sendable (SignalMessage) -> Void)
     func send(_ message: SignalMessage)
     func close()
+    /// The session id the envelopes carry. Known once ready.
+    var session: String? { get }
+    /// The device at the other end. Known once ready.
+    var peer: DeviceID? { get }
+    var identity: LocalIdentity { get }
+    /// The peer's pinned key, or nil if it is not paired: the identity handshake then fails.
+    var pinnedPeerKey: PublicKey? { get }
 }
 
 extension SignalingConnection: SignalingChannel {}
@@ -36,6 +44,9 @@ public class SessionBase: @unchecked Sendable {
     private var stateHandler: (@Sendable (SessionState) -> Void)?
     /// Round trip from the last pong, in seconds.
     private(set) var lastRoundTrip: Double?
+    /// The DTLS certificate fingerprints from this side's and the peer's session descriptions,
+    /// which the identity handshake signs (plan section 14).
+    private let certificates = Mutex<(local: String?, remote: String?)>((nil, nil))
     var onRoundTrip: (@Sendable (Double) -> Void)?
     let log: @Sendable (String) -> Void
 
@@ -54,7 +65,13 @@ public class SessionBase: @unchecked Sendable {
     /// Handlers to construct the transport with. `frame` is the client's video path.
     public func transportHandlers(frame: (@Sendable (PixelBufferBox, UInt32) -> Void)? = nil) -> TransportHandlers {
         TransportHandlers(
-            signal: { [weak self] message in self?.signaling.send(message) },
+            signal: { [weak self] message in
+                guard let self else { return }
+                if message.kind == .offer || message.kind == .answer, let sdp = message.body.sdp {
+                    certificates.withLock { $0.local = SDPFingerprint.value(in: sdp) }
+                }
+                signaling.send(message)
+            },
             event: { [weak self] event in
                 guard let self else { return }
                 queue.async { self.transportEvent(event) }
@@ -109,6 +126,16 @@ public class SessionBase: @unchecked Sendable {
     }
 
     func now() -> Duration { ContinuousClock.now - origin }
+
+    /// What both identity signatures cover, or nil if anything is missing.
+    func helloTranscript(clientNonce: Data, isHost: Bool) -> HelloTranscript? {
+        let (local, remote) = certificates.withLock { ($0.local, $0.remote) }
+        guard let session = signaling.session, let peer = signaling.peer, let local, let remote else { return nil }
+        let me = signaling.identity.id
+        return HelloTranscript(session: session, client: isHost ? peer : me, host: isHost ? me : peer,
+                               clientCertificate: isHost ? remote : local, hostCertificate: isHost ? local : remote,
+                               clientNonce: clientNonce)
+    }
 
     func apply(_ event: SessionEvent) {
         let before = machine.state
@@ -204,10 +231,15 @@ public class SessionBase: @unchecked Sendable {
         switch message.kind {
         case .join:
             break  // Consumed by the signaling connection.
-        case .offer, .answer, .candidate:
+        case .offer, .answer:
+            certificates.withLock { $0.remote = message.body.sdp.flatMap(SDPFingerprint.value(in:)) }
+            transport?.handle(message)
+        case .candidate:
             transport?.handle(message)
         case .bye, .reject:
             apply(.peerEnded(message.endReason ?? .internalError))
+        case .pair, .paired, .ring, .accept:
+            break  // Pairing, and the internet path's ring and accept, are handled before the session.
         }
     }
 
@@ -219,6 +251,12 @@ public class SessionBase: @unchecked Sendable {
         case .state(.disconnected):
             pathConnected = false
             apply(.pathDown)
+        case .state(.failed) where machine.state == .negotiating:
+            // Still looking for a path: WebRTC checks again as more candidates arrive, such as
+            // the Mac's public address after its private ones. Only the path timeout gives up
+            // (plan section 12, path checks 15 s).
+            pathConnected = false
+            log("no working path yet; still checking")
         case .state(.failed), .state(.closed):
             pathConnected = false
             apply(.transportClosed)

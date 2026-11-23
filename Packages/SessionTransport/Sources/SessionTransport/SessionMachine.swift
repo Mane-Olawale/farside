@@ -22,6 +22,9 @@ public enum SessionEndReason: String, Sendable, Equatable, CaseIterable {
     case internalError = "internal_error"
     /// Another device is in a session with this Mac.
     case busy = "busy"
+    /// The Mac has not paired with this device (plan section 14). Signaling only; on the wire it
+    /// travels as auth failed.
+    case notPaired = "not_paired"
 }
 
 public enum SessionState: Sendable, Equatable {
@@ -269,6 +272,7 @@ extension SessionEndReason {
         case .networkLost: .networkLost
         case .internalError: .internalError
         case .busy: .busy
+        case .notPaired: .authFailed
         }
     }
 }

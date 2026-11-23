@@ -56,6 +56,11 @@ public final class WebRTCTransport: SessionTransport, @unchecked Sendable {
     private var receivedTrack: RTCVideoTrack?
     private let lock = NSLock()
     private var closed = false
+    /// Remote candidates that arrived before the remote description was applied. WebRTC refuses
+    /// a candidate until then, and with a candidate pool the Mac's candidates follow its offer
+    /// at once. Used on `queue` only.
+    private var pendingCandidates: [RTCIceCandidate] = []
+    private var hasRemoteDescription = false
     /// start, handle and close run here, never on the caller's thread. A WebRTC call can block on
     /// the peer connection's own threads, so calling one synchronously from another peer's
     /// callback, as two transports in one process do, deadlocks.
@@ -111,8 +116,14 @@ public final class WebRTCTransport: SessionTransport, @unchecked Sendable {
         config.bundlePolicy = .maxBundle
         config.rtcpMuxPolicy = .require
         config.continualGatheringPolicy = .gatherContinually
-        // LAN only until Phase 3 adds STUN and TURN from the backend.
-        config.iceServers = []
+        // None on a LAN; STUN and TURN from the backend over the internet (plan section 12).
+        config.iceServers = configuration.iceServers.map {
+            RTCIceServer(urlStrings: $0.urls, username: $0.username, credential: $0.credential)
+        }
+        config.iceTransportPolicy = configuration.relayOnly ? .relay : .all
+        // Gathering starts before the offer is ready (plan section 12). Only the Mac makes offers,
+        // and on the iPad a pool stalled gathering: it found no candidates of its own at all.
+        config.iceCandidatePoolSize = role == .host && !configuration.iceServers.isEmpty ? 1 : 0
         // Spike S4 knobs for the audio jitter buffer.
         let env = ProcessInfo.processInfo.environment
         if let max = env["FARSIDE_AUDIO_JB_MAX"].flatMap(Int32.init) { config.audioJitterBufferMaxPackets = max }
@@ -223,6 +234,7 @@ public final class WebRTCTransport: SessionTransport, @unchecked Sendable {
             guard role == .client, let sdp = message.body.sdp else { return }
             connection.setRemoteDescription(RTCSessionDescription(type: .offer, sdp: sdp)) { [self] error in
                 if let error { return log("set remote offer failed: \(error)") }
+                queue.async { self.remoteDescriptionApplied() }
                 for transceiver in connection.transceivers where transceiver.mediaType == .video {
                     configure(transceiver)
                     attachSink(transceiver.receiver)
@@ -239,14 +251,43 @@ public final class WebRTCTransport: SessionTransport, @unchecked Sendable {
         case .answer:
             guard role == .host, let sdp = message.body.sdp else { return }
             connection.setRemoteDescription(RTCSessionDescription(type: .answer, sdp: sdp)) { [self] error in
-                if let error { log("set remote answer failed: \(error)") }
+                if let error { return log("set remote answer failed: \(error)") }
+                queue.async { self.remoteDescriptionApplied() }
             }
         case .candidate:
-            guard let candidate = message.body.candidate else { return }
-            connection.add(RTCIceCandidate(sdp: candidate, sdpMLineIndex: message.body.sdpMLineIndex ?? 0, sdpMid: message.body.sdpMid)) { _ in }
-        case .join, .reject, .bye:
+            guard let sdp = message.body.candidate else { return }
+            let candidate = RTCIceCandidate(sdp: sdp, sdpMLineIndex: message.body.sdpMLineIndex ?? 0, sdpMid: message.body.sdpMid)
+            log("remote candidate \(Self.kind(of: sdp))\(hasRemoteDescription ? "" : ", held")")
+            if hasRemoteDescription { add(candidate) } else { pendingCandidates.append(candidate) }
+        case .join, .reject, .bye, .pair, .paired, .ring, .accept:
             // Session-level messages. The session layer acts on them.
             break
+        }
+    }
+
+    fileprivate func note(_ text: String) {
+        log(text)
+    }
+
+    /// "host udp", "srflx udp" and so on, from a candidate line, without its address.
+    static func kind(of candidate: String) -> String {
+        let parts = candidate.split(separator: " ")
+        let type = parts.firstIndex(of: "typ").flatMap { parts.indices.contains($0 + 1) ? parts[$0 + 1] : nil } ?? "?"
+        let proto = parts.count > 2 ? parts[2].lowercased() : "?"
+        return "\(type) \(proto)"
+    }
+
+    /// On `queue`.
+    private func remoteDescriptionApplied() {
+        hasRemoteDescription = true
+        let pending = pendingCandidates
+        pendingCandidates = []
+        pending.forEach(add)
+    }
+
+    private func add(_ candidate: RTCIceCandidate) {
+        connection.add(candidate) { [self] error in
+            if let error { log("remote candidate refused: \(error.localizedDescription)") }
         }
     }
 
@@ -436,9 +477,17 @@ private final class Observer: NSObject, RTCPeerConnectionDelegate, RTCDataChanne
     func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {}
     func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {}
     func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {}
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {}
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {}
+    // Path diagnostics: states and candidate kinds only, never addresses.
+    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
+        let names: [RTCIceConnectionState: String] = [.new: "new", .checking: "checking", .connected: "connected",
+            .completed: "completed", .failed: "failed", .disconnected: "disconnected", .closed: "closed"]
+        owner?.note("ice \(names[newState] ?? "\(newState.rawValue)")")
+    }
+    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
+        owner?.note("gathering \(newState == .complete ? "complete" : newState == .gathering ? "started" : "new")")
+    }
     func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
+        owner?.note("local candidate \(WebRTCTransport.kind(of: candidate.sdp))")
         owner?.candidate(candidate)
     }
     func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}

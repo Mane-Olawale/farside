@@ -198,10 +198,10 @@ private struct StatusPanel: View {
             switch connection.state {
             case .idle, .ringing:
                 ProgressView()
-                Text("Connecting to \(connection.host.name)…").font(.headline)
+                Text("Connecting to \(connection.name)…").font(.headline)
             case .negotiating:
                 ProgressView()
-                Text("Finding a path to \(connection.host.name)…").font(.headline)
+                Text("Finding a path to \(connection.name)…").font(.headline)
             case .securing:
                 ProgressView()
                 Text("Starting the stream…").font(.headline)
@@ -211,9 +211,21 @@ private struct StatusPanel: View {
             case .paused:
                 Text("Paused").font(.headline)
             case .ended(let reason):
-                if let message = Self.message(reason, host: connection.host.name) {
+                if let message = connection.setupError ?? Self.message(reason, host: connection.name) {
                     Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundStyle(.yellow)
                     Text(message).font(.headline).multilineTextAlignment(.center)
+                }
+                if !connection.recentLog.isEmpty {
+                    DisclosureGroup("Details") {
+                        ScrollView {
+                            Text(connection.recentLog.joined(separator: "\n"))
+                                .font(.caption2.monospaced())
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        }
+                        .frame(maxHeight: 220)
+                    }
+                    .font(.caption)
                 }
                 Button("Back to Macs", action: close).buttonStyle(.borderedProminent)
             case .streaming:
@@ -234,7 +246,8 @@ private struct StatusPanel: View {
         case .busy: "Another device is controlling \(host)."
         case .ringTimeout: "\(host) did not answer. It may be asleep or offline."
         case .pathTimeout: "Could not reach \(host) from this network."
-        case .authFailed: "This iPad is not trusted by \(host)."
+        case .authFailed: "\(host) could not prove its identity, or no longer trusts this iPad. Pair them again."
+        case .notPaired: "\(host) has not paired with this iPad. Choose Pair New Device in Farside Host's menu on the Mac, then scan the code."
         case .versionMismatch: "Farside on this iPad and Farside Host on \(host) need the same version. Update the older one."
         case .permissionMissing: "\(host) needs Screen Recording access. Open Farside Host on the Mac to allow it."
         case .hostSleeping: "\(host) went to sleep."

@@ -1,4 +1,6 @@
 import Foundation
+import Pairing
+import Synchronization
 import WireProtocol
 
 /// What one side says about itself in Hello and HelloAck.
@@ -56,7 +58,12 @@ public final class HostSession: SessionBase, @unchecked Sendable {
     private weak var delegate: HostSessionDelegate?
     private var client: DeviceInfo?
     private var applied: Farside_V1_StreamConfigApplied?
+    /// Hello nonces seen by any session on this Mac, so none is accepted twice.
+    static let nonces = Mutex(NonceGuard())
     private let resumeToken = Data((0..<16).map { _ in UInt8.random(in: 0...255) })
+    /// A Hello that arrived before this side saw the path come up: the iPad's data channel can
+    /// open first. Handled once this side is securing.
+    private var earlyHello: Farside_V1_Hello?
 
     public init(signaling: SignalingChannel, local: DeviceInfo, delegate: HostSessionDelegate,
                 timeouts: SessionTimeouts = .standard, log: @escaping @Sendable (String) -> Void = { _ in }) {
@@ -100,26 +107,11 @@ public final class HostSession: SessionBase, @unchecked Sendable {
             delegate?.hostSessionInput(body, seq: seq)
 
         case .hello(let hello):
-            guard machine.state == .securing, client == nil else { return }
-            guard Wire.isCompatible(major: hello.protocolMajor) else {
-                log("client speaks protocol \(hello.protocolMajor).\(hello.protocolMinor)")
-                return apply(.end(.versionMismatch))
+            if machine.state == .negotiating, client == nil {
+                earlyHello = hello
+                return
             }
-            let client = DeviceInfo(hello: hello)
-            self.client = client
-            send(.helloAck(.with {
-                $0.protocolMajor = Wire.major
-                $0.protocolMinor = Wire.minor
-                $0.appVersion = local.appVersion
-                $0.deviceModel = local.model
-                $0.osVersion = local.osVersion
-                $0.deviceName = local.name
-                $0.capabilities = local.capabilities
-                $0.sessionNonce = Data((0..<16).map { _ in UInt8.random(in: 0...255) })
-                $0.resumeToken = resumeToken
-            }))
-            send(.displayList(.with { $0.displays = delegate?.hostSessionDisplays() ?? [] }))
-            delegate?.hostSessionStateChanged(machine.state, client: client)
+            handle(hello)
 
         case .streamConfig(let request):
             guard let client, machine.state == .securing || machine.state == .streaming else { return }
@@ -139,6 +131,51 @@ public final class HostSession: SessionBase, @unchecked Sendable {
 
         default:
             break
+        }
+    }
+
+    /// The identity handshake and HelloAck (plan sections 11 and 14).
+    private func handle(_ hello: Farside_V1_Hello) {
+        guard machine.state == .securing, client == nil else { return }
+        guard Wire.isCompatible(major: hello.protocolMajor) else {
+            log("client speaks protocol \(hello.protocolMajor).\(hello.protocolMinor)")
+            return apply(.end(.versionMismatch))
+        }
+        // The identity handshake (plan section 14): the iPad's pinned key must have signed
+        // this session and both certificates. Nothing is captured before this passes.
+        guard let transcript = helloTranscript(clientNonce: hello.sessionNonce, isHost: true),
+              let key = signaling.pinnedPeerKey,
+              key.verify(hello.identitySignature, for: transcript.helloBody, as: .hello),
+              Self.nonces.withLock({ $0.use(hello.sessionNonce, now: Int64(Date().timeIntervalSince1970)) }) else {
+            log("identity check failed")
+            return apply(.end(.authFailed))
+        }
+        let hostNonce = NonceGuard.make()
+        guard let signature = try? signaling.identity.sign(transcript.helloAckBody(hostNonce: hostNonce), as: .helloAck) else {
+            return apply(.end(.internalError))
+        }
+        let client = DeviceInfo(hello: hello)
+        self.client = client
+        send(.helloAck(.with {
+            $0.protocolMajor = Wire.major
+            $0.protocolMinor = Wire.minor
+            $0.appVersion = local.appVersion
+            $0.deviceModel = local.model
+            $0.osVersion = local.osVersion
+            $0.deviceName = local.name
+            $0.capabilities = local.capabilities
+            $0.sessionNonce = hostNonce
+            $0.identitySignature = signature
+            $0.resumeToken = resumeToken
+        }))
+        send(.displayList(.with { $0.displays = delegate?.hostSessionDisplays() ?? [] }))
+        delegate?.hostSessionStateChanged(machine.state, client: client)
+    }
+
+    override func controlChannelOpened() {
+        if let hello = earlyHello {
+            earlyHello = nil
+            handle(hello)
         }
     }
 
@@ -184,6 +221,7 @@ public final class ClientSession: SessionBase, @unchecked Sendable {
     private weak var delegate: ClientSessionDelegate?
     private var host: DeviceInfo?
     private var requested = false
+    private var helloNonce: Data?
 
     public init(signaling: SignalingChannel, local: DeviceInfo, delegate: ClientSessionDelegate,
                 timeouts: SessionTimeouts = .standard, log: @escaping @Sendable (String) -> Void = { _ in }) {
@@ -207,6 +245,13 @@ public final class ClientSession: SessionBase, @unchecked Sendable {
     }
 
     override func controlChannelOpened() {
+        let nonce = NonceGuard.make()
+        guard let transcript = helloTranscript(clientNonce: nonce, isHost: false),
+              let signature = try? signaling.identity.sign(transcript.helloBody, as: .hello) else {
+            log("identity handshake: session details missing")
+            return apply(.end(.authFailed))
+        }
+        helloNonce = nonce
         send(.hello(.with {
             $0.protocolMajor = Wire.major
             $0.protocolMinor = Wire.minor
@@ -215,7 +260,8 @@ public final class ClientSession: SessionBase, @unchecked Sendable {
             $0.osVersion = local.osVersion
             $0.deviceName = local.name
             $0.capabilities = local.capabilities
-            $0.sessionNonce = Data((0..<16).map { _ in UInt8.random(in: 0...255) })
+            $0.sessionNonce = nonce
+            $0.identitySignature = signature
         }))
     }
 
@@ -240,6 +286,12 @@ public final class ClientSession: SessionBase, @unchecked Sendable {
             guard Wire.isCompatible(major: ack.protocolMajor) else {
                 log("host speaks protocol \(ack.protocolMajor).\(ack.protocolMinor)")
                 return apply(.end(.versionMismatch))
+            }
+            guard let nonce = helloNonce, let transcript = helloTranscript(clientNonce: nonce, isHost: false),
+                  let key = signaling.pinnedPeerKey,
+                  key.verify(ack.identitySignature, for: transcript.helloAckBody(hostNonce: ack.sessionNonce), as: .helloAck) else {
+                log("identity check failed")
+                return apply(.end(.authFailed))
             }
             host = DeviceInfo(ack: ack)
             delegate?.clientSessionStateChanged(machine.state, host: host)

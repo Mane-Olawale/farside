@@ -1,0 +1,80 @@
+# Local backend (plan section 13, deployment): make server-up.
+# API on http://localhost:47880, Reverb on ws://localhost:47881 (next to the LAN port, 47870).
+name: farside
+
+x-app: &app
+  build: ../api
+  env_file: ../api/.env
+  environment:
+    APP_ENV: local
+    DB_CONNECTION: pgsql
+    DB_HOST: db
+    DB_PORT: "5432"
+    DB_DATABASE: farside
+    DB_USERNAME: farside
+    DB_PASSWORD: farside
+    REDIS_HOST: redis
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    BROADCAST_CONNECTION: reverb
+    REVERB_HOST: reverb
+    REVERB_PORT: "8080"
+    REVERB_SCHEME: http
+    SESSION_DRIVER: array
+    LOG_CHANNEL: stderr
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_started
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: farside
+      POSTGRES_USER: farside
+      POSTGRES_PASSWORD: farside
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U farside"]
+      interval: 2s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+
+  api:
+    <<: *app
+    command: sh -c "php artisan migrate --force && frankenphp run --config /etc/frankenphp/Caddyfile"
+    ports:
+      - "47880:8000"
+
+  reverb:
+    <<: *app
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
+      - "47881:8080"
+
+  queue:
+    <<: *app
+    command: php artisan queue:work --tries=3
+
+  # A local relay, so the iPad's Relay only switch has something to use (plan section 12).
+  # Public deployments use Cloudflare or turnserver.conf instead.
+  turn:
+    image: coturn/coturn:4.6
+    env_file: ../api/.env
+    command: >
+      sh -c 'exec turnserver -c /etc/coturn/turnserver.conf
+      --static-auth-secret "$$COTURN_SECRET" --external-ip "$$TURN_EXTERNAL_IP"'
+    volumes:
+      - ../turn/turnserver.dev.conf:/etc/coturn/turnserver.conf:ro
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "49160-49200:49160-49200/udp"
+
+volumes:
+  db:

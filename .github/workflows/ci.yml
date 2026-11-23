@@ -48,6 +48,9 @@ jobs:
       - name: Check generated protocol code
         run: make proto-check PROTOC="$RUNNER_TEMP/protoc/bin/protoc"
 
+      - name: Pinned trust only in the apps
+        run: make trust-check
+
       - name: Test
         run: make test
 
@@ -80,3 +83,25 @@ jobs:
 
       - name: Build the Mac host
         run: make build-host
+
+  server:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite, sodium, intl
+          coverage: none
+
+      - uses: actions/cache@v6
+        with:
+          path: Server/api/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('Server/api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Test and check formatting
+        run: make server-test

@@ -13,6 +13,9 @@ public final class InMemoryTransport: SessionTransport, @unchecked Sendable {
     private var closed = false
     private var dropping = false
     public private(set) var sentSignals: [SignalMessage] = []
+    /// How long after `start()` the path comes up: long enough for the session descriptions to
+    /// cross whatever signaling the test uses.
+    public var connectDelay: Duration = .milliseconds(50)
 
     private init(role: TransportRole, queue: DispatchQueue, handlers: TransportHandlers) {
         self.role = role
@@ -32,11 +35,17 @@ public final class InMemoryTransport: SessionTransport, @unchecked Sendable {
 
     private var isClosed: Bool { lock.withLock { closed } }
 
-    /// Host: connects both ends and opens every channel, as a successful negotiation would.
+    /// Host: exchanges session descriptions carrying certificate fingerprints, then connects
+    /// both ends and opens every channel, as a successful negotiation would.
     public func start() {
         guard role == .host, let peer else { return }
-        queue.async {
-            for end in [self, peer] where !end.isClosed {
+        handlers.signal(.offer("v=0\r\na=fingerprint:sha-256 \(Self.fingerprint("host"))\r\n"))
+        peer.handlers.signal(.answer("v=0\r\na=fingerprint:sha-256 \(Self.fingerprint("client"))\r\n"))
+        // Signaling is delivered asynchronously; let the descriptions land first.
+        queue.asyncAfter(deadline: .now() + connectDelay.timeInterval) {
+            // A close during the delay wins: neither end comes up afterwards.
+            guard !self.isClosed, !peer.isClosed else { return }
+            for end in [self, peer] {
                 end.handlers.event(.state(.connected))
                 for channel in Wire.Channel.allCases { end.handlers.event(.channelOpen(channel)) }
             }
@@ -44,6 +53,11 @@ public final class InMemoryTransport: SessionTransport, @unchecked Sendable {
     }
 
     public func handle(_ message: SignalMessage) {}
+
+    static func fingerprint(_ seed: String) -> String {
+        (0..<32).map { String(format: "%02X", (UInt8(truncatingIfNeeded: seed.hashValue >> ($0 % 8)) &+ UInt8($0))) }
+            .joined(separator: ":")
+    }
 
     public func send(_ data: Data, on channel: Wire.Channel) {
         guard !isClosed, !lock.withLock({ dropping }), let peer else { return }

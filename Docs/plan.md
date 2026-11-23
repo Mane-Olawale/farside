@@ -1139,7 +1139,7 @@ Steps 1 to 6 pass through the backend and carry only signed setup messages. From
 | Transport policy | All paths. Relay-only is a debug switch | Lets tests force the relay |
 | Bundle policy | Maximum bundle | Media and data share one UDP flow, so one path to establish |
 | Continual gathering | On | New candidates appear when the network changes |
-| Candidate pool | 1 | Gathering starts before the offer is ready |
+| Candidate pool | 1 on the Mac, 0 on the iPad | Gathering starts before the offer is ready. Only the Mac makes offers, and on the iPad a pool stalled gathering entirely (Phase 3) |
 | IPv6 | On | Often gives a direct path with no NAT |
 | TURN credential lifetime | 12 hours | Longer than any session. Cloudflare allows up to 48 hours |
 | Start bitrate | 20 Mbps on a LAN, set with `x-google-start-bitrate` (and min and max) in the session description | The bandwidth estimate otherwise starts at 300 kbps. In spike S3 the target reached 37 Mbps within 3 s |
@@ -1244,6 +1244,13 @@ Messages go up over HTTPS and come down over the WebSocket.
 - **Portability.** The envelope format does not depend on Reverb. The service can be replaced by any WebSocket server later.
 
 The backend never parses envelope bodies. It reads the routing fields and passes the rest through.
+
+Decided in Phase 3:
+
+- **Device ids come from the device.** Each app makes its own id (`dev_` and 26 base32 characters) with its key, so pairing and LAN sessions need no backend. `POST /v1/auth/apple` takes the device's id, name and public key with the Apple token, registers the device on first sign-in, and returns its token. A device id stays with one account and one key; a new key means a new id. `POST /v1/devices` refreshes the other details.
+- **The ring is unsigned.** The backend has no device key, so `ring` is only a hint. The Mac checks the caller against its pins and answers with a signed `accept`.
+- **Pairing can go through the backend.** `pair` and `paired` envelopes need no session record, so a QR code can be answered when the iPad and the Mac are on different networks.
+- **Local ports.** `make server-up` serves the API on 47880 and Reverb on 47881, next to the LAN listener on 47870.
 
 ### Data model
 
@@ -1807,6 +1814,20 @@ Exit criteria:
 4. A signed-in but unpaired device cannot connect.
 5. Internet connect time is 5 s or less.
 6. Relay round trip time from your usual locations is measured and written down.
+
+Results (22 to 23 November 2026, M3 Pro Mac on home Wi-Fi in Nigeria, iPad Pro M4 on a phone hotspot, backend in DigitalOcean London, Cloudflare relay):
+
+| Check | Result |
+| --- | --- |
+| 1. Hotspot to home, direct | Passed. Path Direct, round trip 52 ms at best, 128 ms averaged over the session |
+| 2. Forced relay | Passed. Path Relay, 282 to 363 ms |
+| 2. UDP blocked, TLS on 443 | Passed with the relay limited to TURN over TLS on 443, which is what a UDP-blocking network leaves: Relay, 359 ms, first frame after 8.6 s. A real UDP-blocking network is still to be tried |
+| 3. Tampered offer fingerprint | Passed, automated (`SignedSignalingTests`) |
+| 4. Signed-in but unpaired device | Passed, automated on the LAN; over the internet the Mac answers an unpaired caller's ring with not paired |
+| 5. Connect time 5 s or less | Passed on the direct path: first frame 3.78 s after Connect. Over the relay 5.8 s, and 8.6 s over TLS only |
+| 6. Relay round trip | 282 to 363 ms from a cellular hotspot. Other usual locations still to be measured |
+
+The relay round trip is high for interactive use; Phase 5 looks at it with the playout delay and the ladder.
 
 ### Phase 4: Host reliability (weeks 12 to 13)
 

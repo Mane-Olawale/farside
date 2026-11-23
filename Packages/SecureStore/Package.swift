@@ -10,9 +10,8 @@ let package = Package(
     products: [
         .library(name: "SecureStore", targets: ["SecureStore"]),
     ],
-    dependencies: [
-    ],
     targets: [
-        .target(name: "SecureStore", dependencies: []),
+        .target(name: "SecureStore"),
+        .testTarget(name: "SecureStoreTests", dependencies: ["SecureStore"]),
     ]
 )

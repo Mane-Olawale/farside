@@ -89,8 +89,25 @@ public enum PlayoutMode: String, Sendable, Codable, CaseIterable {
     case both
 }
 
+/// One STUN or TURN server from the backend (plan section 12, transport configuration).
+public struct TransportIceServer: Sendable, Equatable {
+    public var urls: [String]
+    public var username: String?
+    public var credential: String?
+
+    public init(urls: [String], username: String? = nil, credential: String? = nil) {
+        self.urls = urls
+        self.username = username
+        self.credential = credential
+    }
+}
+
 public struct TransportConfiguration: Sendable, Equatable {
     public var playout: PlayoutMode
+    /// None on a LAN; STUN and TURN with short-lived credentials over the internet.
+    public var iceServers: [TransportIceServer] = []
+    /// Relay only: the debug switch that forces TURN (plan section 12).
+    public var relayOnly = false
     /// In order of preference.
     public var codecs: [VideoCodec]
     /// Where the bandwidth estimate starts. 20 Mbps on a LAN (plan section 12).
@@ -112,6 +129,14 @@ public struct TransportConfiguration: Sendable, Equatable {
 
     /// Plan section 8 and 12 defaults for a LAN session.
     public static let lan = TransportConfiguration()
+
+    /// An internet session: the backend's ICE servers, optionally relay only.
+    public static func internet(iceServers: [TransportIceServer], relayOnly: Bool = false) -> TransportConfiguration {
+        var configuration = TransportConfiguration()
+        configuration.iceServers = iceServers
+        configuration.relayOnly = relayOnly
+        return configuration
+    }
 }
 
 /// What the stats overlay and the spike reports read (plan section 16).

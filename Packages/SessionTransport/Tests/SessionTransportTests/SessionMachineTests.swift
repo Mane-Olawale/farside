@@ -312,9 +312,11 @@ struct Harness {
     }
 
     @Test func endReasonsRoundTripThroughTheWire() {
-        for reason in SessionEndReason.allCases {
+        // Not paired travels only in signaling; on the wire it is auth failed.
+        for reason in SessionEndReason.allCases where reason != .notPaired {
             #expect(SessionEndReason(wire: reason.wire) == reason)
         }
+        #expect(SessionEndReason.notPaired.wire == .authFailed)
         #expect(SessionEndReason(wire: .unspecified) == .internalError)
         #expect(SessionEndReason(wire: .UNRECOGNIZED(99)) == .internalError)
     }

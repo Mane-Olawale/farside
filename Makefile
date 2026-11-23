@@ -3,7 +3,7 @@ PROJECT = Farside.xcodeproj
 DERIVED = .build/DerivedData
 XCB = xcodebuild -project $(PROJECT) -derivedDataPath $(DERIVED) CODE_SIGNING_ALLOWED=NO
 
-.PHONY: generate test ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 component-input build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up
+.PHONY: generate test trust-check ci build build-client build-host run-host install-client build-testpattern run-testpattern build-loopback run-s1 build-inputprobe run-s2 component-input build-s3 run-s3-local install-s3-viewer build-lockprobe build-permprobe proto proto-check hooks server-up server-test server-down backend-live-test server-deploy
 
 generate:
 	xcodegen generate
@@ -19,8 +19,19 @@ test:
 		fi; \
 	done
 
-# What CI runs (.github/workflows/ci.yml): package tests, then both app builds.
-ci: test build-client build-host
+# The apps trust pinned keys only (plan section 14). The accept-any-signer mode is for the spike
+# rigs in Tools; this fails if it ever appears in an app.
+trust-check:
+	@if grep -rn "anySignerForSpikeRigs" Apps; then echo "Apps must use pinned trust only."; exit 1; fi
+
+# The backend (plan section 13): its tests on SQLite in memory, and the formatter.
+server-test:
+	cd Server/api && composer install --no-interaction --prefer-dist --quiet \
+		&& { [ -f .env ] || { cp .env.example .env && php artisan key:generate --quiet; }; } \
+		&& php artisan test && ./vendor/bin/pint --test
+
+# What CI runs (.github/workflows/ci.yml): package tests, backend tests, then both app builds.
+ci: trust-check test server-test build-client build-host
 
 build: build-client build-host build-testpattern
 
@@ -139,8 +150,23 @@ hooks:
 	cp Tools/git-hooks/pre-commit .git/hooks/pre-commit
 	chmod +x .git/hooks/pre-commit Tools/git-hooks/pre-commit
 
+# The local backend (plan section 13): API on :47880, Reverb on :47881. Needs Server/api/.env,
+# made from .env.example with php artisan key:generate and the REVERB_APP_* values set.
 server-up:
-	@if [ ! -f Server/deploy/compose.yml ]; then \
-		echo "No Server/deploy/compose.yml yet. The backend arrives in Phase 3."; exit 0; \
-	fi; \
-	docker compose -f Server/deploy/compose.yml up -d
+	@test -f Server/api/.env || { echo "Create Server/api/.env from Server/api/.env.example first."; exit 1; }
+	docker compose -f Server/deploy/compose.yml up -d --build
+
+server-down:
+	docker compose -f Server/deploy/compose.yml down
+
+# The public backend (Server/deploy/README.md): make server-deploy HOST=root@1.2.3.4 DOMAIN=api.example.com,
+# with SSH_KEY=path/to/private_key if the server does not take your default key.
+server-deploy:
+	@test -n "$(HOST)" -a -n "$(DOMAIN)" || { echo "Usage: make server-deploy HOST=root@server DOMAIN=api.example.com"; exit 1; }
+	FARSIDE_SSH_KEY="$(SSH_KEY)" Server/deploy/production/deploy.sh $(HOST) $(DOMAIN) $$(grep '^FARSIDE_BUNDLE_PREFIX' Config/Local.xcconfig | tail -1 | cut -d= -f2 | tr -d ' ')
+
+# BackendClient against the running local backend: two throwaway devices, a ring and a signal.
+backend-live-test:
+	@devices=$$(docker compose -f Server/deploy/compose.yml exec -T api php artisan farside:test-devices) && \
+	key=$$(grep ^REVERB_APP_KEY Server/api/.env | cut -d= -f2) && \
+	FARSIDE_LIVE_BACKEND="$$devices" FARSIDE_REVERB_KEY="$$key" FARSIDE_COMPOSE="$(CURDIR)/Server/deploy/compose.yml" swift test --package-path Packages/BackendClient --filter Live

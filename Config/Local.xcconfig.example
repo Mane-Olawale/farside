@@ -3,3 +3,8 @@
 // screen recording and accessibility grants on every build (plan section 6).
 DEVELOPMENT_TEAM = YOUR_TEAM_ID
 FARSIDE_BUNDLE_PREFIX = app.farside
+
+// The local backend from make server-up, reached at this Mac's address on the network.
+// FARSIDE_API_URL = http:/$()/192.168.1.10:47880
+// FARSIDE_REVERB_URL = ws:/$()/192.168.1.10:47881
+// FARSIDE_REVERB_KEY = the REVERB_APP_KEY from Server/api/.env

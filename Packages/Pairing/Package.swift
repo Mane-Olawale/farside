@@ -15,5 +15,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "Pairing", dependencies: ["SecureStore"]),
+        .testTarget(name: "PairingTests", dependencies: ["Pairing"]),
     ]
 )

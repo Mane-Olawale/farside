@@ -11,10 +11,21 @@ let package = Package(
         .library(name: "BackendClient", targets: ["BackendClient"]),
     ],
     dependencies: [
-        .package(path: "../WireProtocol"),
         .package(path: "../Pairing"),
+        .package(path: "../SecureStore"),
+        .package(path: "../SessionTransport"),
+        .package(path: "../WireProtocol"),
     ],
     targets: [
-        .target(name: "BackendClient", dependencies: ["WireProtocol", "Pairing"]),
+        .target(name: "BackendClient", dependencies: [
+            "Pairing",
+            "SecureStore",
+            .product(name: "SessionTransport", package: "SessionTransport"),
+        ]),
+        .testTarget(name: "BackendClientTests", dependencies: [
+            "BackendClient", "Pairing", "SecureStore", "WireProtocol",
+            .product(name: "SessionTransport", package: "SessionTransport"),
+            .product(name: "SessionTransportWebRTC", package: "SessionTransport"),
+        ]),
     ]
 )
