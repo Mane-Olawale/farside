@@ -226,6 +226,7 @@ final class ConnectionModel: Identifiable {
         if case .ended(let reason) = state {
             log.info("ended: \(reason.rawValue, privacy: .public)")
             statsTask?.cancel()
+            recordEnded(reason)
         }
     }
 
@@ -284,6 +285,41 @@ final class ConnectionModel: Identifiable {
         }
     }
 
+    /// The path kind for the overlay and the session record (plan section 12, path quality):
+    /// both host candidates is the same network, any relay candidate is the relay, else direct.
+    nonisolated static func pathType(local: String?, remote: String?) -> String? {
+        guard let local, let remote else { return nil }
+        if local == "relay" || remote == "relay" { return "relay" }
+        return local == "host" && remote == "host" ? "lan" : "direct"
+    }
+
+    // MARK: Session record (internet sessions; plan section 13)
+
+    @ObservationIgnored private var reportedConnected = false
+    @ObservationIgnored private var recordPath: String?
+    @ObservationIgnored private var bitrateSamples: [Double] = []
+    @ObservationIgnored private var rttSamples: [Double] = []
+
+    private func record(path: String?, bitrateMbps: Double?, rttMs: Double?) {
+        guard case let .internet(api, _, _) = route, let session = backendSession else { return }
+        if let path { recordPath = path }
+        if state == .streaming {
+            if let bitrateMbps { bitrateSamples.append(bitrateMbps) }
+            if let rttMs { rttSamples.append(rttMs) }
+        }
+        guard !reportedConnected, state == .streaming, let path = recordPath else { return }
+        reportedConnected = true
+        Task { try? await api.report(SessionReport(type: .connected, pathType: path), session: session) }
+    }
+
+    private func recordEnded(_ reason: SessionEndReason) {
+        guard case let .internet(api, _, _) = route, let session = backendSession else { return }
+        func average(_ values: [Double]) -> Int? { values.isEmpty ? nil : Int(values.reduce(0, +) / Double(values.count)) }
+        let report = SessionReport(type: .ended, pathType: recordPath, endReason: reason.rawValue,
+                                   avgBitrate: average(bitrateSamples.map { $0 * 1000 }), avgRtt: average(rttSamples))
+        Task { try? await api.report(report, session: session) }
+    }
+
     private func update(with s: TransportStats) {
         let counters = presenter?.takeCounters() ?? VideoPresenter.Counters()
         let p = previous
@@ -293,7 +329,8 @@ final class ConnectionModel: Identifiable {
             return now - (p?[keyPath: key] ?? 0)
         }
         var next = stats
-        next.path = s.localCandidateType.map { $0 == "host" && s.remoteCandidateType == "host" ? "Same network" : "\($0) to \(s.remoteCandidateType ?? "?")" }
+        let path = Self.pathType(local: s.localCandidateType, remote: s.remoteCandidateType)
+        next.path = path.map { ["lan": "Same network", "direct": "Direct", "relay": "Relay"][$0] ?? $0 }
         if next.roundTripMs == nil, let rtt = s.roundTripTime { next.roundTripMs = rtt * 1000 }
         next.framesReceived = delta(\.framesReceived)
         next.framesDecoded = delta(\.framesDecoded)
@@ -309,6 +346,7 @@ final class ConnectionModel: Identifiable {
         next.freezes = s.freezeCount
         next.framesDropped = s.framesDropped
         stats = next
+        record(path: path, bitrateMbps: next.bitrateMbps, rttMs: next.roundTripMs)
     }
 
     // MARK: Identity
