@@ -121,8 +121,9 @@ public final class WebRTCTransport: SessionTransport, @unchecked Sendable {
             RTCIceServer(urlStrings: $0.urls, username: $0.username, credential: $0.credential)
         }
         config.iceTransportPolicy = configuration.relayOnly ? .relay : .all
-        // Gathering starts before the offer is ready.
-        config.iceCandidatePoolSize = configuration.iceServers.isEmpty ? 0 : 1
+        // Gathering starts before the offer is ready (plan section 12). Only the Mac makes offers,
+        // and on the iPad a pool stalled gathering: it found no candidates of its own at all.
+        config.iceCandidatePoolSize = role == .host && !configuration.iceServers.isEmpty ? 1 : 0
         // Spike S4 knobs for the audio jitter buffer.
         let env = ProcessInfo.processInfo.environment
         if let max = env["FARSIDE_AUDIO_JB_MAX"].flatMap(Int32.init) { config.audioJitterBufferMaxPackets = max }

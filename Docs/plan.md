@@ -1139,7 +1139,7 @@ Steps 1 to 6 pass through the backend and carry only signed setup messages. From
 | Transport policy | All paths. Relay-only is a debug switch | Lets tests force the relay |
 | Bundle policy | Maximum bundle | Media and data share one UDP flow, so one path to establish |
 | Continual gathering | On | New candidates appear when the network changes |
-| Candidate pool | 1 | Gathering starts before the offer is ready |
+| Candidate pool | 1 on the Mac, 0 on the iPad | Gathering starts before the offer is ready. Only the Mac makes offers, and on the iPad a pool stalled gathering entirely (Phase 3) |
 | IPv6 | On | Often gives a direct path with no NAT |
 | TURN credential lifetime | 12 hours | Longer than any session. Cloudflare allows up to 48 hours |
 | Start bitrate | 20 Mbps on a LAN, set with `x-google-start-bitrate` (and min and max) in the session description | The bandwidth estimate otherwise starts at 300 kbps. In spike S3 the target reached 37 Mbps within 3 s |
