@@ -43,7 +43,9 @@ public final class InMemoryTransport: SessionTransport, @unchecked Sendable {
         peer.handlers.signal(.answer("v=0\r\na=fingerprint:sha-256 \(Self.fingerprint("client"))\r\n"))
         // Signaling is delivered asynchronously; let the descriptions land first.
         queue.asyncAfter(deadline: .now() + connectDelay.timeInterval) {
-            for end in [self, peer] where !end.isClosed {
+            // A close during the delay wins: neither end comes up afterwards.
+            guard !self.isClosed, !peer.isClosed else { return }
+            for end in [self, peer] {
                 end.handlers.event(.state(.connected))
                 for channel in Wire.Channel.allCases { end.handlers.event(.channelOpen(channel)) }
             }
