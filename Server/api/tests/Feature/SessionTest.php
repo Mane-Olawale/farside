@@ -33,6 +33,14 @@ class SessionTest extends TestCase
         });
     }
 
+    public function test_a_take_over_request_rides_on_the_ring(): void
+    {
+        [, $token, $account] = $this->device();
+        [$mac] = $this->device('macOS', $account);
+        $this->as($token)->postJson('/v1/sessions', ['target' => $mac->id, 'take_over' => true])->assertCreated();
+        Event::assertDispatched(SignalDelivered::class, fn (SignalDelivered $e) => json_decode($e->envelope, true)['body'] === ['takeOver' => true]);
+    }
+
     public function test_only_this_accounts_macs_can_be_called(): void
     {
         [$ipad, $token, $account] = $this->device();

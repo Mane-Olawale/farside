@@ -25,6 +25,9 @@ public enum SessionEndReason: String, Sendable, Equatable, CaseIterable {
     /// The Mac has not paired with this device (plan section 14). Signaling only; on the wire it
     /// travels as auth failed.
     case notPaired = "not_paired"
+    /// Attended mode: the person at the Mac declined (plan section 6). Signaling only; on the
+    /// wire it travels as host ended.
+    case declined = "declined"
 }
 
 public enum SessionState: Sendable, Equatable {
@@ -273,6 +276,7 @@ extension SessionEndReason {
         case .internalError: .internalError
         case .busy: .busy
         case .notPaired: .authFailed
+        case .declined: .hostEnded
         }
     }
 }

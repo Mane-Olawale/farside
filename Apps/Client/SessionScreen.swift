@@ -244,7 +244,15 @@ private struct StatusPanel: View {
                     }
                     .font(.caption)
                 }
-                Button("Back to Macs", action: close).buttonStyle(.borderedProminent)
+                if reason == .busy {
+                    Button("Take Over") { connection.takeOver() }
+                        .buttonStyle(.borderedProminent)
+                }
+                if reason == .busy {
+                    Button("Back to Macs", action: close).buttonStyle(.bordered)
+                } else {
+                    Button("Back to Macs", action: close).buttonStyle(.borderedProminent)
+                }
             case .streaming:
                 EmptyView()
             }
@@ -264,6 +272,7 @@ private struct StatusPanel: View {
         case .ringTimeout: "\(host) did not answer. It may be asleep or offline."
         case .pathTimeout: "Could not reach \(host) from this network."
         case .authFailed: "\(host) could not prove its identity, or no longer trusts this iPad. Pair them again."
+        case .declined: "Someone at \(host) declined the session."
         case .notPaired: "\(host) has not paired with this iPad. Choose Pair New Device in Farside Host's menu on the Mac, then scan the code."
         case .versionMismatch: "Farside on this iPad and Farside Host on \(host) need the same version. Update the older one."
         case .permissionMissing: "\(host) needs Screen Recording access. Open Farside Host on the Mac to allow it."

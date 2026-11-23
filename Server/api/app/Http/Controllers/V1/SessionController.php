@@ -21,7 +21,11 @@ class SessionController extends Controller
      */
     public function store(Request $request, IceServers $ice): JsonResponse
     {
-        $data = $request->validate(['target' => ['required', 'string', 'regex:'.Device::ID_PATTERN]]);
+        $data = $request->validate([
+            'target' => ['required', 'string', 'regex:'.Device::ID_PATTERN],
+            // Busy and take over (plan section 6): the Mac ends its current session for this one.
+            'take_over' => ['sometimes', 'boolean'],
+        ]);
         $caller = $request->user();
         $target = Device::active()->where('account_id', $caller->account_id)->find($data['target']);
         if (! $target || ! $target->isHost() || $target->id === $caller->id) {
@@ -44,7 +48,7 @@ class SessionController extends Controller
         // checks the caller against its pins, and answers with a signed accept.
         $ring = json_encode([
             'v' => 1, 'type' => 'ring', 'session' => $session->id, 'from' => $caller->id, 'to' => $target->id,
-            'seq' => 0, 'ts' => time(), 'body' => (object) [],
+            'seq' => 0, 'ts' => time(), 'body' => ($data['take_over'] ?? false) ? ['takeOver' => true] : (object) [],
         ], JSON_UNESCAPED_SLASHES);
         event(new SignalDelivered($target->id, $ring));
 

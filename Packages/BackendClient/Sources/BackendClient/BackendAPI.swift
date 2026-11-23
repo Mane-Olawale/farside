@@ -36,9 +36,13 @@ public final class BackendAPI: Sendable {
         let _: Empty = try await request("DELETE", "v1/devices/\(id)")
     }
 
-    public func createSession(to target: String) async throws(BackendError) -> CreatedSession {
-        struct Body: Encodable { let target: String }
-        return try await request("POST", "v1/sessions", body: Body(target: target))
+    /// `takeOver` asks the Mac to end its current session for this one.
+    public func createSession(to target: String, takeOver: Bool = false) async throws(BackendError) -> CreatedSession {
+        struct Body: Encodable {
+            let target: String
+            let take_over: Bool?
+        }
+        return try await request("POST", "v1/sessions", body: Body(target: target, take_over: takeOver ? true : nil))
     }
 
     public func iceServers() async throws(BackendError) -> IceServerList {

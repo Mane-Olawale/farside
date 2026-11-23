@@ -104,8 +104,8 @@ final class HostBackend {
             signaling.close()
             return
         }
-        guard !controller.isBusy else {
-            signaling.send(.reject(.busy))
+        if let refusal = await controller.admit(caller, takeOver: ring.body.takeOver == true) {
+            signaling.send(.reject(refusal))
             signaling.close()
             return
         }
@@ -115,11 +115,6 @@ final class HostBackend {
         } catch {
             log.error("no ICE servers: \(String(describing: error), privacy: .public)")
             signaling.send(.reject(.internalError))
-            signaling.close()
-            return
-        }
-        guard !controller.isBusy else {
-            signaling.send(.reject(.busy))
             signaling.close()
             return
         }

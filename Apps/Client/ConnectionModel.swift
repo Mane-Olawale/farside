@@ -83,6 +83,14 @@ final class ConnectionModel: Identifiable {
     @ObservationIgnored private var lastDisplay: UInt32?
     /// Ended by the person, so nothing reconnects.
     @ObservationIgnored private var closedByUser = false
+    /// The next attempt asks the Mac to end its current session (plan section 6, take over).
+    @ObservationIgnored private var takeOverNext = false
+
+    /// The Mac was busy with another device: try again, ending that session.
+    func takeOver() {
+        takeOverNext = true
+        attempt()
+    }
 
     /// The session's recent log lines (states, path and transport errors; never input or
     /// keys), for the Details list when a connection fails.
@@ -139,14 +147,18 @@ final class ConnectionModel: Identifiable {
         connectStarted = CACurrentMediaTime()
         switch route {
         case .lan(let host):
-            begin(signaling: SignalingConnection.connect(to: host.endpoint, credentials: credentials, peer: peer.id),
+            let takeOver = takeOverNext
+            takeOverNext = false
+            begin(signaling: SignalingConnection.connect(to: host.endpoint, credentials: credentials, peer: peer.id, takeOver: takeOver),
                   configuration: .lan)
         case let .internet(api, router, relay):
             let relayOnly = relay != .off
+            let takeOver = takeOverNext
+            takeOverNext = false
             state = .ringing
             Task {
                 do {
-                    let created = try await api.createSession(to: peer.id.rawValue)
+                    let created = try await api.createSession(to: peer.id.rawValue, takeOver: takeOver)
                     guard state == .ringing else { return }  // Cancelled meanwhile.
                     backendSession = created.session
                     let log = self.log

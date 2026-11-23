@@ -221,6 +221,22 @@ struct Devices {
         accepted.get()?.close()
     }
 
+    /// Busy and take over (plan section 6): the request travels in the signed join.
+    @Test(.timeLimit(.minutes(1)))
+    func takeOverRequestReachesTheMac() async throws {
+        let admitted = Locked<SignalingConnection?>(nil)
+        let (advertiser, port) = try await advertise(onConnection: { connection in admitted.set(connection) })
+        defer { advertiser.stop() }
+        let client = SignalingConnection.connect(host: "127.0.0.1", port: port, credentials: d.credentials(d.iPad), peer: d.mac.id,
+                                                 takeOver: true)
+        client.start(onState: { _ in }, onMessage: { _ in })
+        defer { client.close() }
+        let end = Date().addingTimeInterval(5)
+        while admitted.get() == nil, Date() < end { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(admitted.get()?.requestsTakeOver == true)
+        admitted.get()?.close()
+    }
+
     /// Exit criterion 4 on the LAN: a device the Mac has not paired with is told so and never
     /// reaches the owner, so no session is created for it.
     @Test(.timeLimit(.minutes(1)))
