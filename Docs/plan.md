@@ -1815,6 +1815,20 @@ Exit criteria:
 5. Internet connect time is 5 s or less.
 6. Relay round trip time from your usual locations is measured and written down.
 
+Results (22 to 23 November 2026, M3 Pro Mac on home Wi-Fi in Nigeria, iPad Pro M4 on a phone hotspot, backend in DigitalOcean London, Cloudflare relay):
+
+| Check | Result |
+| --- | --- |
+| 1. Hotspot to home, direct | Passed. Path Direct, round trip 52 ms at best, 128 ms averaged over the session |
+| 2. Forced relay | Passed. Path Relay, 282 to 363 ms |
+| 2. UDP blocked, TLS on 443 | Passed with the relay limited to TURN over TLS on 443, which is what a UDP-blocking network leaves: Relay, 359 ms, first frame after 8.6 s. A real UDP-blocking network is still to be tried |
+| 3. Tampered offer fingerprint | Passed, automated (`SignedSignalingTests`) |
+| 4. Signed-in but unpaired device | Passed, automated on the LAN; over the internet the Mac answers an unpaired caller's ring with not paired |
+| 5. Connect time 5 s or less | Passed on the direct path: first frame 3.78 s after Connect. Over the relay 5.8 s, and 8.6 s over TLS only |
+| 6. Relay round trip | 282 to 363 ms from a cellular hotspot. Other usual locations still to be measured |
+
+The relay round trip is high for interactive use; Phase 5 looks at it with the playout delay and the ladder.
+
 ### Phase 4: Host reliability (weeks 12 to 13)
 
 Goal: the Mac is always reachable and sessions survive real-world interruptions.
