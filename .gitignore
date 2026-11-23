@@ -18,3 +18,4 @@ Config/Local.xcconfig
 .env.*
 Server/api/vendor/
 Server/api/node_modules/
+!Server/api/.env.example

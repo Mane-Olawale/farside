@@ -7,7 +7,9 @@ if [ -z "$staged" ]; then
   exit 0
 fi
 
-blocked=$(printf '%s\n' "$staged" | grep -E '(^|/)Local\.xcconfig$|(^|/)\.env(\..*)?$|\.(pem|key|p8|p12|pfx|mobileprovision|provisionprofile)$' || true)
+# .env.example is the template with empty values; any other .env file is refused.
+blocked=$(printf '%s\n' "$staged" | grep -E '(^|/)Local\.xcconfig$|(^|/)\.env(\..*)?$|\.(pem|key|p8|p12|pfx|mobileprovision|provisionprofile)$' \
+  | grep -vE '(^|/)\.env\.example$' || true)
 if [ -n "$blocked" ]; then
   echo "Refusing to commit signing material or local config:"
   printf '%s\n' "$blocked"
